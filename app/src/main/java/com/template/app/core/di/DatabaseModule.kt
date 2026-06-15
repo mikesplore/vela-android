@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.template.app.core.data.local.AppDatabase
 import com.template.app.core.data.local.dao.SettingsDao
 import com.template.app.core.data.local.dao.UserDao
+import com.template.app.core.data.local.dao.VelaDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,9 +25,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "app_database"
         )
-            // Add migrations here when you bump the version in AppDatabase
-            // .addMigrations(MIGRATION_1_2)
-            .fallbackToDestructiveMigration(false)   // Remove in production; use real migrations
+            .fallbackToDestructiveMigration()
             .build()
 
     @Provides
@@ -36,4 +35,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideSettingsDao(db: AppDatabase): SettingsDao = db.settingsDao()
+
+    @Provides
+    @Singleton
+    fun provideVelaDao(db: AppDatabase): VelaDao = db.velaDao()
 }

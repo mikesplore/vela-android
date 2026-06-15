@@ -25,10 +25,14 @@ import com.template.app.core.data.local.entities.*
         VelaAudioEntity::class,
         VelaMediaEntity::class,
         VelaProcessEntity::class,
-        VelaDiskEntity::class
+        VelaDiskEntity::class,
+        VelaNotificationEntity::class,
+        VelaWifiEntity::class,
+        VelaBrightnessEntity::class,
+        VelaResolutionEntity::class
     ],
-    version = 3,
-    exportSchema = true  // enables compile-time schema verification
+    version = 4,
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

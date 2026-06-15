@@ -19,10 +19,13 @@ data class DashboardState(
     val isRefreshing: Boolean = false,
     val health: VelaHealth? = null,
     val network: VelaNetworkInfo? = null,
+    val wifi: VelaWifiStatus? = null,
+    val resolution: VelaResolution? = null,
     val media: VelaMediaState? = null,
     val audio: VelaAudioState? = null,
     val brightness: Int = 0,
     val processes: List<VelaProcess> = emptyList(),
+    val processLimit: Int = 5,
     val activeWindow: String? = null,
     val disks: List<VelaDiskUsage> = emptyList(),
     val clipboardText: String = "",
@@ -40,9 +43,51 @@ class DashboardViewModel @Inject constructor(
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
+    private val _processLimit = MutableStateFlow(5)
+
     init {
+        observeData()
         startPolling()
         startUptimeTicking()
+    }
+
+    private fun observeData() {
+        velaRepository.observeHealth()
+            .onEach { health -> _state.update { it.copy(health = health, uptimeSeconds = health?.uptimeSeconds ?: it.uptimeSeconds) } }
+            .launchIn(viewModelScope)
+
+        velaRepository.observeNetwork()
+            .onEach { network -> _state.update { it.copy(network = network) } }
+            .launchIn(viewModelScope)
+
+        velaRepository.observeWifi()
+            .onEach { wifi -> _state.update { it.copy(wifi = wifi) } }
+            .launchIn(viewModelScope)
+
+        velaRepository.observeResolution()
+            .onEach { res -> _state.update { it.copy(resolution = res) } }
+            .launchIn(viewModelScope)
+
+        velaRepository.observeAudio()
+            .onEach { audio -> _state.update { it.copy(audio = audio) } }
+            .launchIn(viewModelScope)
+
+        velaRepository.observeMedia()
+            .onEach { media -> _state.update { it.copy(media = media) } }
+            .launchIn(viewModelScope)
+
+        velaRepository.observeDisks()
+            .onEach { disks -> _state.update { it.copy(disks = disks) } }
+            .launchIn(viewModelScope)
+
+        velaRepository.observeBrightness()
+            .onEach { b -> b?.let { brightness -> _state.update { it.copy(brightness = brightness.value) } } }
+            .launchIn(viewModelScope)
+
+        _processLimit
+            .flatMapLatest { limit -> velaRepository.observeProcesses(limit) }
+            .onEach { processes -> _state.update { it.copy(processes = processes) } }
+            .launchIn(viewModelScope)
     }
 
     private fun startPolling() {
@@ -70,67 +115,51 @@ class DashboardViewModel @Inject constructor(
             _state.update { it.copy(isRefreshing = true) }
             
             val healthRes = velaRepository.getHealth()
-            val networkRes = velaRepository.getNetworkInfo()
-            val mediaRes = velaRepository.getNowPlaying()
-            val audioRes = velaRepository.getVolume()
-            val brightnessRes = velaRepository.getBrightness()
-            val processesRes = velaRepository.getProcesses()
+            velaRepository.getNetworkInfo()
+            velaRepository.getWifiStatus()
+            velaRepository.getResolution()
+            velaRepository.getNowPlaying()
+            velaRepository.getVolume()
+            velaRepository.getBrightness()
+            velaRepository.getProcesses()
             val activeWindowRes = velaRepository.getActiveWindow()
-            val diskRes = velaRepository.getDiskUsage()
+            velaRepository.getDiskUsage()
             val clipboardRes = velaRepository.readClipboard()
 
             _state.update { 
                 it.copy(
                     isRefreshing = false,
                     isConnected = healthRes is Resource.Success,
-                    health = healthRes.dataOrNull(),
-                    network = networkRes.dataOrNull(),
-                    media = mediaRes.dataOrNull(),
-                    audio = audioRes.dataOrNull(),
-                    brightness = brightnessRes.dataOrNull() ?: it.brightness,
-                    processes = processesRes.dataOrNull() ?: it.processes,
                     activeWindow = activeWindowRes.dataOrNull(),
-                    disks = diskRes.dataOrNull() ?: it.disks,
                     clipboardText = clipboardRes.dataOrNull() ?: it.clipboardText,
-                    error = (healthRes as? Resource.Error)?.message,
-                    uptimeSeconds = healthRes.dataOrNull()?.uptimeSeconds ?: it.uptimeSeconds
+                    error = (healthRes as? Resource.Error)?.message
                 )
             }
         }
     }
 
+    fun toggleProcessLimit() {
+        val newLimit = if (_processLimit.value == 5) 50 else 5
+        _processLimit.value = newLimit
+        _state.update { it.copy(processLimit = newLimit) }
+    }
+
     fun setVolume(value: Int) {
-        viewModelScope.launch {
-            when (val res = velaRepository.setVolume(value)) {
-                is Resource.Success -> _state.update { it.copy(audio = res.data) }
-                else -> {}
-            }
-        }
+        viewModelScope.launch { velaRepository.setVolume(value) }
     }
 
     fun setMute(muted: Boolean) {
-        viewModelScope.launch {
-            when (val res = velaRepository.setMute(muted)) {
-                is Resource.Success -> _state.update { it.copy(audio = res.data) }
-                else -> {}
-            }
-        }
+        viewModelScope.launch { velaRepository.setMute(muted) }
     }
 
     fun setBrightness(value: Int) {
-        viewModelScope.launch {
-            when (velaRepository.setBrightness(value)) {
-                is Resource.Success -> _state.update { it.copy(brightness = value) }
-                else -> {}
-            }
-        }
+        viewModelScope.launch { velaRepository.setBrightness(value) }
     }
 
     fun togglePlayPause() {
         viewModelScope.launch {
             velaRepository.togglePlayPause()
-            val mediaRes = velaRepository.getNowPlaying()
-            _state.update { it.copy(media = mediaRes.dataOrNull()) }
+            velaRepository.getNowPlaying()
         }
     }
 
@@ -151,9 +180,7 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun lockScreen() {
-        viewModelScope.launch {
-            velaRepository.lockDisplay()
-        }
+        viewModelScope.launch { velaRepository.lockDisplay() }
     }
 
     fun takeScreenshot() {

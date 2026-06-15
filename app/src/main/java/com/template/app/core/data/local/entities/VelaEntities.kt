@@ -12,7 +12,7 @@ data class VelaHealthEntity(
 ) {
     fun toDomain() = VelaHealth(status, uptimeSeconds)
     companion object {
-        fun fromDomain(domain: VelaHealth) = VelaHealthEntity(status = domain.status, uptimeSeconds = domain.uptimeSeconds)
+        fun fromDomain(domain: VelaHealth) = VelaHealthEntity(id = 0, status = domain.status, uptimeSeconds = domain.uptimeSeconds)
     }
 }
 
@@ -26,6 +26,7 @@ data class VelaNetworkEntity(
     fun toDomain() = VelaNetworkInfo(localIp, publicIp, interfaceName)
     companion object {
         fun fromDomain(domain: VelaNetworkInfo) = VelaNetworkEntity(
+            id = 0,
             localIp = domain.localIp,
             publicIp = domain.publicIp,
             interfaceName = domain.interfaceName
@@ -41,7 +42,7 @@ data class VelaAudioEntity(
 ) {
     fun toDomain() = VelaAudioState(volume, muted)
     companion object {
-        fun fromDomain(domain: VelaAudioState) = VelaAudioEntity(volume = domain.volume, muted = domain.muted)
+        fun fromDomain(domain: VelaAudioState) = VelaAudioEntity(id = 0, volume = domain.volume, muted = domain.muted)
     }
 }
 
@@ -58,6 +59,7 @@ data class VelaMediaEntity(
     fun toDomain() = VelaMediaState(title, artist, album, status, positionSeconds, lengthSeconds)
     companion object {
         fun fromDomain(domain: VelaMediaState) = VelaMediaEntity(
+            id = 0,
             title = domain.title,
             artist = domain.artist,
             album = domain.album,
@@ -102,6 +104,75 @@ data class VelaDiskEntity(
             used = domain.used,
             free = domain.free,
             percent = domain.percent
+        )
+    }
+}
+
+@Entity(tableName = "vela_notifications")
+data class VelaNotificationEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val message: String,
+    val appName: String?,
+    val timestamp: Long
+) {
+    fun toDomain() = VelaNotification(id, title, message, appName, timestamp)
+    companion object {
+        fun fromDomain(domain: VelaNotification) = VelaNotificationEntity(
+            id = domain.id,
+            title = domain.title,
+            message = domain.message,
+            appName = domain.appName,
+            timestamp = domain.timestamp
+        )
+    }
+}
+
+@Entity(tableName = "vela_wifi")
+data class VelaWifiEntity(
+    @PrimaryKey val id: Int = 0,
+    val connected: Boolean,
+    val ssid: String?,
+    val signal: Int?
+) {
+    fun toDomain() = VelaWifiStatus(connected, ssid, signal)
+    companion object {
+        fun fromDomain(domain: VelaWifiStatus) = VelaWifiEntity(
+            id = 0,
+            connected = domain.connected,
+            ssid = domain.ssid,
+            signal = domain.signal
+        )
+    }
+}
+
+@Entity(tableName = "vela_brightness")
+data class VelaBrightnessEntity(
+    @PrimaryKey val id: Int = 0,
+    val value: Int
+) {
+    fun toDomain() = VelaBrightness(value)
+    companion object {
+        fun fromDomain(domain: VelaBrightness) = VelaBrightnessEntity(id = 0, value = domain.value)
+    }
+}
+
+@Entity(tableName = "vela_resolution")
+data class VelaResolutionEntity(
+    @PrimaryKey val id: Int = 0,
+    val width: Int,
+    val height: Int,
+    val refresh: Double,
+    val output: String?
+) {
+    fun toDomain() = VelaResolution(width, height, refresh, output)
+    companion object {
+        fun fromDomain(domain: VelaResolution) = VelaResolutionEntity(
+            id = 0,
+            width = domain.width,
+            height = domain.height,
+            refresh = domain.refresh,
+            output = domain.output
         )
     }
 }

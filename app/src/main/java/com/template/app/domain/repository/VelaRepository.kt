@@ -2,8 +2,21 @@ package com.template.app.domain.repository
 
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.*
+import kotlinx.coroutines.flow.Flow
 
 interface VelaRepository {
+    // Observable streams (Offline-first)
+    fun observeHealth(): Flow<VelaHealth?>
+    fun observeNetwork(): Flow<VelaNetworkInfo?>
+    fun observeAudio(): Flow<VelaAudioState?>
+    fun observeMedia(): Flow<VelaMediaState?>
+    fun observeProcesses(limit: Int = 5): Flow<List<VelaProcess>>
+    fun observeDisks(): Flow<List<VelaDiskUsage>>
+    fun observeNotifications(): Flow<List<VelaNotification>>
+    fun observeWifi(): Flow<VelaWifiStatus?>
+    fun observeBrightness(): Flow<VelaBrightness?>
+    fun observeResolution(): Flow<VelaResolution?>
+
     // General
     suspend fun getHealth(): Resource<VelaHealth>
     
@@ -12,6 +25,7 @@ interface VelaRepository {
     suspend fun setBrightness(value: Int): Resource<Unit>
     suspend fun lockDisplay(): Resource<Unit>
     suspend fun getResolution(): Resource<String>
+    suspend fun getBrightness(): Resource<Int>
     
     // Audio
     suspend fun getVolume(): Resource<VelaAudioState>
@@ -43,6 +57,4 @@ interface VelaRepository {
     // Processes
     suspend fun getProcesses(): Resource<List<VelaProcess>>
     suspend fun getActiveWindow(): Resource<String>
-
-    suspend fun getBrightness(): Resource<Int>
 }

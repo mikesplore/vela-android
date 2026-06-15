@@ -2,25 +2,64 @@ package com.template.app.core.data.repository
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import com.template.app.core.data.local.dao.VelaDao
+import com.template.app.core.data.local.entities.*
 import com.template.app.core.data.remote.api.VelaApiService
 import com.template.app.core.data.remote.dto.*
 import com.template.app.core.utils.Resource
 import com.template.app.core.utils.safeApiCall
 import com.template.app.domain.model.*
 import com.template.app.domain.repository.VelaRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class VelaRepositoryImpl @Inject constructor(
     private val apiService: VelaApiService,
+    private val velaDao: VelaDao,
     private val moshi: Moshi
 ) : VelaRepository {
 
+    override fun observeHealth(): Flow<VelaHealth?> =
+        velaDao.observeHealth().map { it?.toDomain() }
+
+    override fun observeNetwork(): Flow<VelaNetworkInfo?> =
+        velaDao.observeNetwork().map { it?.toDomain() }
+
+    override fun observeAudio(): Flow<VelaAudioState?> =
+        velaDao.observeAudio().map { it?.toDomain() }
+
+    override fun observeMedia(): Flow<VelaMediaState?> =
+        velaDao.observeMedia().map { it?.toDomain() }
+
+    override fun observeProcesses(limit: Int): Flow<List<VelaProcess>> =
+        velaDao.observeProcesses(limit).map { list -> list.map { it.toDomain() } }
+
+    override fun observeDisks(): Flow<List<VelaDiskUsage>> =
+        velaDao.observeDisks().map { list -> list.map { it.toDomain() } }
+
+    override fun observeNotifications(): Flow<List<VelaNotification>> =
+        velaDao.observeNotifications().map { list -> list.map { it.toDomain() } }
+
+    override fun observeWifi(): Flow<VelaWifiStatus?> =
+        velaDao.observeWifi().map { it?.toDomain() }
+
+    override fun observeBrightness(): Flow<VelaBrightness?> =
+        velaDao.observeBrightness().map { it?.toDomain() }
+
+    override fun observeResolution(): Flow<VelaResolution?> =
+        velaDao.observeResolution().map { it?.toDomain() }
+
+    // --- Actions & Refreshing ---
+
     override suspend fun getHealth(): Resource<VelaHealth> = safeApiCall {
         val response = apiService.health()
-        VelaHealth(
+        val domain = VelaHealth(
             status = response.status ?: "unknown",
             uptimeSeconds = response.uptimeSeconds ?: 0L
         )
+        velaDao.upsertHealth(VelaHealthEntity.fromDomain(domain))
+        domain
     }
 
     override suspend fun getScreenshot(): Resource<String> = safeApiCall {
@@ -29,6 +68,7 @@ class VelaRepositoryImpl @Inject constructor(
 
     override suspend fun setBrightness(value: Int): Resource<Unit> = safeApiCall {
         apiService.setBrightness(BrightnessRequest(value))
+        velaDao.upsertBrightness(VelaBrightnessEntity.fromDomain(VelaBrightness(value)))
         Unit
     }
 
@@ -39,22 +79,35 @@ class VelaRepositoryImpl @Inject constructor(
 
     override suspend fun getResolution(): Resource<String> = safeApiCall {
         val res = apiService.getResolution()
+        val domain = VelaResolution(
+            width = res.width ?: 0,
+            height = res.height ?: 0,
+            refresh = res.refresh ?: 0.0,
+            output = res.output
+        )
+        velaDao.upsertResolution(VelaResolutionEntity.fromDomain(domain))
         "${res.width}x${res.height} @ ${res.refresh}Hz"
     }
 
     override suspend fun getVolume(): Resource<VelaAudioState> = safeApiCall {
         val res = apiService.getVolume()
-        VelaAudioState(res.volume ?: 0, res.muted ?: false)
+        val domain = VelaAudioState(res.volume ?: 0, res.muted ?: false)
+        velaDao.upsertAudio(VelaAudioEntity.fromDomain(domain))
+        domain
     }
 
     override suspend fun setVolume(value: Int): Resource<VelaAudioState> = safeApiCall {
         val res = apiService.setVolume(AudioVolumeRequest(value))
-        VelaAudioState(res.volume ?: 0, res.muted ?: false)
+        val domain = VelaAudioState(res.volume ?: 0, res.muted ?: false)
+        velaDao.upsertAudio(VelaAudioEntity.fromDomain(domain))
+        domain
     }
 
     override suspend fun setMute(muted: Boolean): Resource<VelaAudioState> = safeApiCall {
         val res = apiService.setMute(AudioMuteRequest(muted))
-        VelaAudioState(res.volume ?: 0, res.muted ?: false)
+        val domain = VelaAudioState(res.volume ?: 0, res.muted ?: false)
+        velaDao.upsertAudio(VelaAudioEntity.fromDomain(domain))
+        domain
     }
 
     override suspend fun shutdown(): Resource<Unit> = safeApiCall {
@@ -75,7 +128,7 @@ class VelaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getDiskUsage(): Resource<List<VelaDiskUsage>> = safeApiCall {
-        apiService.getDiskUsage().usage?.map {
+        val domains = apiService.getDiskUsage().usage?.map {
             VelaDiskUsage(
                 mountpoint = it.mountpoint ?: "",
                 total = it.total ?: 0L,
@@ -84,31 +137,44 @@ class VelaRepositoryImpl @Inject constructor(
                 percent = it.percent ?: 0.0
             )
         } ?: emptyList()
+        velaDao.replaceDisks(domains.map { VelaDiskEntity.fromDomain(it) })
+        domains
     }
 
     override suspend fun getNetworkInfo(): Resource<VelaNetworkInfo> = safeApiCall {
         val response = apiService.getNetworkIp()
-        VelaNetworkInfo(
+        val domain = VelaNetworkInfo(
             localIp = response.localIp ?: "",
             publicIp = response.publicIp ?: "",
             interfaceName = response.interfaceName ?: ""
         )
+        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(domain))
+        domain
     }
 
     override suspend fun getWifiStatus(): Resource<String> = safeApiCall {
-        apiService.getWifiStatus().ssid ?: "Unknown"
+        val res = apiService.getWifiStatus()
+        val domain = VelaWifiStatus(
+            connected = res.connected ?: false,
+            ssid = res.ssid,
+            signal = res.signal
+        )
+        velaDao.upsertWifi(VelaWifiEntity.fromDomain(domain))
+        res.ssid ?: "Unknown"
     }
 
     override suspend fun getNotifications(): Resource<List<VelaNotification>> = safeApiCall {
-        apiService.getNotifications().notifications?.map {
+        val domains = apiService.getNotifications().notifications?.map {
             VelaNotification(
                 id = it.id?.toString() ?: "",
                 title = it.title ?: "",
                 message = it.message ?: "",
                 appName = it.appName,
-                timestamp = System.currentTimeMillis() // Fallback
+                timestamp = System.currentTimeMillis()
             )
         } ?: emptyList()
+        velaDao.replaceNotifications(domains.map { VelaNotificationEntity.fromDomain(it) })
+        domains
     }
 
     override suspend fun readClipboard(): Resource<String> = safeApiCall {
@@ -122,7 +188,7 @@ class VelaRepositoryImpl @Inject constructor(
 
     override suspend fun getNowPlaying(): Resource<VelaMediaState?> = safeApiCall {
         apiService.getNowPlaying().let {
-            VelaMediaState(
+            val domain = VelaMediaState(
                 title = it.title,
                 artist = it.artist,
                 album = it.album,
@@ -130,6 +196,8 @@ class VelaRepositoryImpl @Inject constructor(
                 positionSeconds = it.positionSeconds,
                 lengthSeconds = it.lengthSeconds
             )
+            velaDao.upsertMedia(VelaMediaEntity.fromDomain(domain))
+            domain
         }
     }
 
@@ -140,7 +208,9 @@ class VelaRepositoryImpl @Inject constructor(
 
     override suspend fun getProcesses(): Resource<List<VelaProcess>> = safeApiCall {
         val jsonStr = apiService.getProcesses().string()
-        parseProcessesResiliently(jsonStr)
+        val domains = parseProcessesResiliently(jsonStr)
+        velaDao.replaceProcesses(domains.map { VelaProcessEntity.fromDomain(it) })
+        domains
     }
 
     override suspend fun getActiveWindow(): Resource<String> = safeApiCall {
@@ -148,7 +218,9 @@ class VelaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getBrightness(): Resource<Int> = safeApiCall {
-        apiService.getBrightness().brightness?.toInt() ?: 0
+        val brightness = apiService.getBrightness().brightness?.toInt() ?: 0
+        velaDao.upsertBrightness(VelaBrightnessEntity.fromDomain(VelaBrightness(brightness)))
+        brightness
     }
 
     private fun parseProcessesResiliently(jsonStr: String): List<VelaProcess> {
