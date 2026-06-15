@@ -23,7 +23,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = getSettingsUseCase().first()
             if (settings.baseUrl.isNotBlank() && settings.apiToken.isNotBlank()) {
-                _startDestination.value = Routes.DASHBOARD
+                _startDestination.value = Routes.MAIN
             } else {
                 _startDestination.value = Routes.ONBOARDING
             }

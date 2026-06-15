@@ -192,6 +192,11 @@ class VelaRepositoryImpl @Inject constructor(
         Unit
     }
 
+    override suspend fun clearClipboard(): Resource<Unit> = safeApiCall {
+        apiService.clearClipboard()
+        Unit
+    }
+
     override suspend fun getNowPlaying(): Resource<VelaMediaState?> = safeApiCall {
         apiService.getNowPlaying().let {
             val domain = VelaMediaState(

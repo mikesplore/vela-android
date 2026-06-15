@@ -51,6 +51,7 @@ interface VelaRepository {
     // Clipboard
     suspend fun readClipboard(): Resource<String>
     suspend fun writeClipboard(text: String): Resource<Unit>
+    suspend fun clearClipboard(): Resource<Unit>
     
     // Media
     suspend fun getNowPlaying(): Resource<VelaMediaState?>
