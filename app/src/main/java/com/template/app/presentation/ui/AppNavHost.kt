@@ -28,11 +28,23 @@ fun AppNavHost(navController: NavHostController) {
         startDestination = Routes.ONBOARDING
     ) {
         composable(Routes.ONBOARDING) {
-            OnboardingScreen()
+            OnboardingScreen(
+                onOnboardingComplete = {
+                    navController.navigate(Routes.DASHBOARD) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(Routes.DASHBOARD) {
-            DashboardScreen()
+            DashboardScreen(
+                onLogout = {
+                    navController.navigate(Routes.ONBOARDING) {
+                        popUpTo(Routes.DASHBOARD) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(Routes.USERS) {

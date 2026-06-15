@@ -5,8 +5,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.template.app.core.data.local.dao.SettingsDao
 import com.template.app.core.data.local.dao.UserDao
-import com.template.app.core.data.local.entities.SettingsEntity
-import com.template.app.core.data.local.entities.UserEntity
+import com.template.app.core.data.local.dao.VelaDao
+import com.template.app.core.data.local.entities.*
 
 /**
  * Central Room database. To add a new table:
@@ -19,13 +19,20 @@ import com.template.app.core.data.local.entities.UserEntity
 @Database(
     entities = [
         UserEntity::class,
-        SettingsEntity::class
+        SettingsEntity::class,
+        VelaHealthEntity::class,
+        VelaNetworkEntity::class,
+        VelaAudioEntity::class,
+        VelaMediaEntity::class,
+        VelaProcessEntity::class,
+        VelaDiskEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = true  // enables compile-time schema verification
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun settingsDao(): SettingsDao
+    abstract fun velaDao(): VelaDao
 }
