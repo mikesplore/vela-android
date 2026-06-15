@@ -1,0 +1,32 @@
+# IDE and Build artifacts
+.gradle/
+.idea/
+build/
+app/build/
+*.iml
+
+# Local configuration
+local.properties
+
+# Log files
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Android Studio / IntelliJ
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Gradle wrapper
+# (Optional: some prefer to ignore the .jar, but usually wrapper is tracked)
+# !gradle/wrapper/gradle-wrapper.jar
+
+# Secrets
+# (Uncomment if you use them)
+# google-services.json
+# *.jks
+# *.keystore
