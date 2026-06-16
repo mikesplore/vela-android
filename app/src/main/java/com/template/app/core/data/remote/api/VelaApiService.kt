@@ -91,6 +91,18 @@ interface VelaApiService {
     @POST("power/hibernate")
     suspend fun hibernate(): GenericResponse
 
+    @POST("power/schedule-shutdown")
+    suspend fun scheduleShutdown(@Body body: ScheduleShutdownRequest): GenericResponse
+
+    @POST("power/cancel-shutdown")
+    suspend fun cancelShutdown(@Body body: ScheduleShutdownRequest): GenericResponse
+
+    @GET("power/profile")
+    suspend fun getPowerProfile(): PowerProfileResponse
+
+    @POST("power/profile")
+    suspend fun setPowerProfile(@Body body: PowerProfileRequest): GenericResponse
+
     // ── Filesystem ────────────────────────────────────────────────────────────
 
     @GET("fs/list")

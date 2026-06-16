@@ -36,103 +36,6 @@ fun DashboardScreen(
     var isFabMenuExpanded by remember { mutableStateOf(false) }
     val colorScheme = MaterialTheme.colorScheme
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Logo mark
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Hub,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "VELA",
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 3.sp,
-                            fontSize = 18.sp,
-                            color = colorScheme.onSurface
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.logout(onLogout) }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(colorScheme.error.copy(alpha = 0.10f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Logout,
-                                contentDescription = "Logout",
-                                tint = colorScheme.error,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = colorScheme.background,
-                    scrolledContainerColor = colorScheme.background
-                )
-            )
-        },
-        floatingActionButton = {
-            DashboardFabMenu(
-                isExpanded = isFabMenuExpanded,
-                onToggle = { isFabMenuExpanded = !isFabMenuExpanded },
-                onScreenshot = { viewModel.takeScreenshot(); isFabMenuExpanded = false },
-                onLock = { viewModel.lockScreen(); isFabMenuExpanded = false },
-                onPlayPause = { viewModel.togglePlayPause(); isFabMenuExpanded = false }
-            )
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(colorScheme.background)
-                .padding(padding)
-        ) {
-            // Ambient glow orbs in background
-            Box(
-                modifier = Modifier
-                    .size(300.dp)
-                    .offset(x = (-80).dp, y = 40.dp)
-                    .background(
-                        Brush.radialGradient(
-                            listOf(colorScheme.primary.copy(alpha = 0.07f), Color.Transparent)
-                        ),
-                        shape = CircleShape
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .size(250.dp)
-                    .align(Alignment.TopEnd)
-                    .offset(x = 80.dp, y = 100.dp)
-                    .background(
-                        Brush.radialGradient(
-                            listOf(colorScheme.secondary.copy(alpha = 0.05f), Color.Transparent)
-                        ),
-                        shape = CircleShape
-                    )
-            )
 
             Column(
                 modifier = Modifier
@@ -141,11 +44,6 @@ fun DashboardScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Spacer(modifier = Modifier.height(4.dp))
-
-                state.error?.let { msg ->
-                    ErrorMessage(msg)
-                }
 
                 state.health?.let { health ->
                     AnimatedVisibility(
@@ -260,8 +158,8 @@ fun DashboardScreen(
                     }
                 }
             }
-        }
-    }
+
+
 
     state.screenshot?.let { bitmap ->
         ScreenshotSheet(

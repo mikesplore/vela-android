@@ -24,13 +24,7 @@ fun AudioScreen() = PlaceholderScreen("Audio Screen")
 fun NetworkScreen() = PlaceholderScreen("Network Screen")
 
 @Composable
-fun MediaScreen() = PlaceholderScreen("Media Screen")
-
-@Composable
 fun FilesScreen() = PlaceholderScreen("Files Screen")
-
-@Composable
-fun ProcessesScreen() = PlaceholderScreen("Processes Screen")
 
 @Composable
 fun SecurityScreen() = PlaceholderScreen("Security Screen")
@@ -40,9 +34,6 @@ fun SchedulerScreen() = PlaceholderScreen("Scheduler Screen")
 
 @Composable
 fun MaintenanceScreen() = PlaceholderScreen("Maintenance Screen")
-
-@Composable
-fun PowerScreen() = PlaceholderScreen("Power Screen")
 
 @Composable
 fun InputControlScreen() = PlaceholderScreen("Input Control Screen")

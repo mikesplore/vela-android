@@ -38,6 +38,13 @@ interface VelaRepository {
     
     // Power
     suspend fun shutdown(): Resource<Unit>
+    suspend fun restart(): Resource<Unit>
+    suspend fun sleep(): Resource<Unit>
+    suspend fun hibernate(): Resource<Unit>
+    suspend fun scheduleShutdown(at: String): Resource<Unit>
+    suspend fun cancelShutdown(): Resource<Unit>
+    suspend fun getPowerProfile(): Resource<String>
+    suspend fun setPowerProfile(profile: String): Resource<Unit>
     
     // Filesystem
     suspend fun listFiles(path: String): Resource<List<VelaFileInfo>>
@@ -58,10 +65,14 @@ interface VelaRepository {
     // Media
     suspend fun getNowPlaying(): Resource<VelaMediaState?>
     suspend fun togglePlayPause(): Resource<Unit>
+    suspend fun mediaNext(): Resource<Unit>
+    suspend fun mediaPrevious(): Resource<Unit>
+    suspend fun mediaSeek(seconds: Int): Resource<Unit>
     
     // Processes
     suspend fun getProcesses(): Resource<List<VelaProcess>>
     suspend fun getActiveWindow(): Resource<String>
+    suspend fun killProcess(pid: Int): Resource<Unit>
 
     // Monitor
     suspend fun getCpuUsage(): Resource<VelaCpuUsage>

@@ -103,12 +103,14 @@ fun MainScreen(onLogout: () -> Unit) {
             
             // More menu screens
             composable(Routes.FILES) { FilesScreen() }
-            composable(Routes.PROCESSES) { ProcessesScreen() }
+            composable(Routes.PROCESSES) { ProcessesScreen(onBack = { showSheet = true }) }
             composable(Routes.SECURITY) { SecurityScreen() }
             composable(Routes.SCHEDULER) { SchedulerScreen() }
             composable(Routes.MAINTENANCE) { MaintenanceScreen() }
             composable(Routes.NETWORK) { NetworkScreen() }
-            composable(Routes.POWER) { PowerScreen() }
+            composable(Routes.POWER) { 
+                PowerScreen(onBack = { navController.popBackStack() }) 
+            }
             composable(Routes.CLIPBOARD) { ClipboardScreen() }
             composable(Routes.INPUT_CONTROL) { InputControlScreen() }
             composable(Routes.NOTIFICATIONS) { NotificationsScreen() }

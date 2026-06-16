@@ -67,8 +67,5 @@ fun AppNavHost(
             )
         }
 
-        // Keep existing routes if needed, but they might be moved inside MainScreen's NavHost
-        // for better consistency if they are part of the main flow.
-        // For now, I'll focus on the requested skeleton.
     }
 }

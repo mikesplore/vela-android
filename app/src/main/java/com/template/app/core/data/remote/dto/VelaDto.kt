@@ -117,6 +117,25 @@ data class AudioOutputDeviceRequest(
     @Json(name = "device_id") val deviceId: String
 )
 
+// ── Power ──
+
+@JsonClass(generateAdapter = true)
+data class ScheduleShutdownRequest(
+    val at: String
+)
+
+@JsonClass(generateAdapter = true)
+data class PowerProfileResponse(
+    val success: Boolean? = null,
+    val message: String? = null,
+    val profile: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class PowerProfileRequest(
+    val profile: String
+)
+
 // ── Filesystem ──
 
 @JsonClass(generateAdapter = true)

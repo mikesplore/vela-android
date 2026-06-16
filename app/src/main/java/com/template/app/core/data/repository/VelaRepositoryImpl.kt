@@ -127,6 +127,41 @@ class VelaRepositoryImpl @Inject constructor(
         Unit
     }
 
+    override suspend fun restart(): Resource<Unit> = safeApiCall {
+        apiService.restart()
+        Unit
+    }
+
+    override suspend fun sleep(): Resource<Unit> = safeApiCall {
+        apiService.sleep()
+        Unit
+    }
+
+    override suspend fun hibernate(): Resource<Unit> = safeApiCall {
+        apiService.hibernate()
+        Unit
+    }
+
+    override suspend fun scheduleShutdown(at: String): Resource<Unit> = safeApiCall {
+        apiService.scheduleShutdown(ScheduleShutdownRequest(at))
+        Unit
+    }
+
+    override suspend fun cancelShutdown(): Resource<Unit> = safeApiCall {
+        apiService.cancelShutdown(ScheduleShutdownRequest("now"))
+        Unit
+    }
+
+
+    override suspend fun getPowerProfile(): Resource<String> = safeApiCall {
+        apiService.getPowerProfile().profile ?: "unknown"
+    }
+
+    override suspend fun setPowerProfile(profile: String): Resource<Unit> = safeApiCall {
+        apiService.setPowerProfile(PowerProfileRequest(profile))
+        Unit
+    }
+
     override suspend fun listFiles(path: String): Resource<List<VelaFileInfo>> = safeApiCall {
         apiService.listFiles(path).files?.map {
             VelaFileInfo(
@@ -228,6 +263,21 @@ class VelaRepositoryImpl @Inject constructor(
         Unit
     }
 
+    override suspend fun mediaNext(): Resource<Unit> = safeApiCall {
+        apiService.mediaNext()
+        Unit
+    }
+
+    override suspend fun mediaPrevious(): Resource<Unit> = safeApiCall {
+        apiService.mediaPrevious()
+        Unit
+    }
+
+    override suspend fun mediaSeek(seconds: Int): Resource<Unit> = safeApiCall {
+        apiService.mediaSeek(MediaSeekRequest(seconds))
+        Unit
+    }
+
     override suspend fun getProcesses(): Resource<List<VelaProcess>> = safeApiCall {
         val jsonStr = apiService.getProcesses().string()
         val domains = parseProcessesResiliently(jsonStr)
@@ -239,6 +289,11 @@ class VelaRepositoryImpl @Inject constructor(
         val title = apiService.getActiveWindow().title ?: ""
         velaDao.upsertActiveWindow(VelaActiveWindowEntity.fromTitle(title))
         title
+    }
+
+    override suspend fun killProcess(pid: Int): Resource<Unit> = safeApiCall {
+        apiService.killProcessByPid(pid)
+        Unit
     }
 
     override suspend fun getBrightness(): Resource<Int> = safeApiCall {
