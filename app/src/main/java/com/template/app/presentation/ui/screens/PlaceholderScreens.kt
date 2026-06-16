@@ -20,8 +20,6 @@ fun DisplayScreen() = PlaceholderScreen("Display Screen")
 @Composable
 fun AudioScreen() = PlaceholderScreen("Audio Screen")
 
-@Composable
-fun NetworkScreen() = PlaceholderScreen("Network Screen")
 
 @Composable
 fun FilesScreen() = PlaceholderScreen("Files Screen")

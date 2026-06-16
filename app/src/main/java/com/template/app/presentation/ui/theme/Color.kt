@@ -2,41 +2,59 @@ package com.template.app.presentation.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ── Vela Custom Palette ──────────────────────────────────────────────────────
-val VelaBgDeep       = Color(0xFF070A10)
-val VelaBgMid        = Color(0xFF0A0D14)
-val VelaAccentIndigo = Color(0xFF6C63FF)
-val VelaAccentCyan   = Color(0xFF00D9F5)
-val VelaAccentRose   = Color(0xFFF43F5E)
-val VelaTextPrimary  = Color(0xFFF0F4FF)
-val VelaTextMuted    = Color(0xFF8B95A8)
-val VelaCardBorder   = Color(0xFF1E2533)
-val VelaWarning      = Color(0xFFFFB300)
-val VelaSuccess      = Color(0xFF4CAF50)
+// ==========================================
+// DARK MODE TOKENS
+// ==========================================
+val DarkBaseBg = Color(0xFF0F0F0F)
+val DarkSurfaceFill = Color(0x0AFFFFFF)      // rgba(255,255,255,0.04)
 
-// ── Light (Standard) ─────────────────────────────────────────────────────────
-val md_theme_light_primary            = Color(0xFF006397)
-val md_theme_light_onPrimary          = Color(0xFFFFFFFF)
-val md_theme_light_primaryContainer   = Color(0xFFCDE5FF)
-val md_theme_light_secondary          = Color(0xFF50606E)
-val md_theme_light_background         = Color(0xFFFCFCFF)
-val md_theme_light_surface            = Color(0xFFFCFCFF)
+// Dark Mode Borders & Dividers
+val DarkBorder = Color(0x1AFFFFFF)           // rgba(255,255,255,0.10)
+val DarkDivider = Color(0x0DFFFFFF)          // rgba(255,255,255,0.05)
 
-// ── Dark (Vela-inspired) ─────────────────────────────────────────────────────
-val md_theme_dark_primary             = VelaAccentIndigo
-val md_theme_dark_onPrimary           = Color.White
-val md_theme_dark_primaryContainer    = VelaAccentIndigo.copy(alpha = 0.2f)
-val md_theme_dark_secondary           = VelaAccentCyan
-val md_theme_dark_onSecondary         = Color.Black
-val md_theme_dark_secondaryContainer  = VelaAccentCyan.copy(alpha = 0.2f)
-val md_theme_dark_tertiary            = VelaWarning
-val md_theme_dark_onTertiary          = Color.Black
-val md_theme_dark_background          = VelaBgDeep
-val md_theme_dark_onBackground        = VelaTextPrimary
-val md_theme_dark_surface             = VelaBgMid
-val md_theme_dark_onSurface           = VelaTextPrimary
-val md_theme_dark_surfaceVariant      = VelaCardBorder
-val md_theme_dark_onSurfaceVariant    = VelaTextMuted
-val md_theme_dark_outline             = VelaCardBorder
-val md_theme_dark_error               = VelaAccentRose
-val md_theme_dark_onError             = Color.White
+// Dark Mode Text Ramps
+val DarkTextPrimary = Color(0xEBFFFFFF)      // rgba(255,255,255,0.92)
+val DarkTextSecondary = Color(0x66FFFFFF)    // rgba(255,255,255,0.40)
+val DarkTextTertiary = Color(0x40FFFFFF)     // rgba(255,255,255,0.25)
+
+// Dark Mode Accent (Purple)
+val DarkAccentFill = Color(0xFF7C6FCD)       // #7c6fcd
+val DarkAccentText = Color(0xFF9D92D8)       // #9d92d8
+val DarkAccentTintBg = Color(0x267C6FCD)     // rgba(124,111,205,0.15)
+val DarkAccentTintBorder = Color(0x4D7C6FCD) // rgba(124,111,205,0.30)
+
+
+// ==========================================
+// LIGHT MODE TOKENS
+// ==========================================
+val LightBaseBg = Color(0xFFFAFAFA)
+val LightSurfaceFill = Color(0x09000000)     // rgba(0,0,0,0.035)
+
+// Light Mode Borders & Dividers
+val LightBorder = Color(0x14000000)          // rgba(0,0,0,0.08)
+val LightDivider = Color(0x0F000000)         // rgba(0,0,0,0.06)
+
+// Light Mode Text Ramps
+val LightTextPrimary = Color(0xD9000000)     // rgba(0,0,0,0.85)
+val LightTextSecondary = Color(0x66000000)   // rgba(0,0,0,0.40)
+val LightTextTertiary = Color(0x4D000000)    // rgba(0,0,0,0.30)
+
+// Light Mode Accent (Purple - Darkened 10-15% for contrast)
+val LightAccentFill = Color(0xFF6356B8)      // #6356b8
+val LightAccentText = Color(0xFF6356B8)      
+val LightAccentTintBg = Color(0x1A6356B8)    // rgba(99,86,184,0.10)
+val LightAccentTintBorder = Color(0x406356B8)// rgba(99,86,184,0.25)
+
+
+// ==========================================
+// SEMANTIC COLOR RAMP (Sparing Status Indicators)
+// ==========================================
+// Dark Mode Semantics
+val DarkSuccess = Color(0xFF6FCB72)
+val DarkWarning = Color(0xFFE8A440)
+val DarkDanger = Color(0xFFE0524F)
+
+// Light Mode Semantics
+val LightSuccess = Color(0xFF2E9E44)
+val LightWarning = Color(0xFFB8780F)
+val LightDanger = Color(0xFFC43A37)

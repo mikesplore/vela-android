@@ -253,7 +253,6 @@ fun MediaScreen(
                     modifier = Modifier.size(80.dp),
                     shape = CircleShape,
                     color = colorScheme.primaryContainer,
-                    shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(

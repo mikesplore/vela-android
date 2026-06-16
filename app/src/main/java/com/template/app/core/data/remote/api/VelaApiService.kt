@@ -172,7 +172,7 @@ interface VelaApiService {
     @POST("network/ping")
     suspend fun pingHost(@Body body: PingHostRequest): PingHostResponse
 
-    @GET("network/speed-test")
+    @GET("network/speed-testt")
     suspend fun speedTest(): SpeedTestResponse
 
     @GET("network/bluetooth/devices")

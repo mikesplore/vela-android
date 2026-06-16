@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.template.app.domain.model.*
-import com.template.app.presentation.ui.theme.VelaSuccess
+import com.template.app.presentation.ui.theme.DarkSuccess
 import java.util.Locale
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ private fun diskColor(pct: Double, cs: ColorScheme): Color = when {
     else     -> cs.primary
 }
 private fun signalColor(signal: Int, cs: ColorScheme): Color = when {
-    signal > 70 -> VelaSuccess
+    signal > 70 -> DarkSuccess
     signal > 40 -> cs.tertiary
     else        -> cs.error
 }

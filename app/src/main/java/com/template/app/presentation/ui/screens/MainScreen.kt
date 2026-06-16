@@ -1,5 +1,7 @@
 package com.template.app.presentation.ui.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.template.app.presentation.ui.Routes
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(onLogout: () -> Unit) {
@@ -52,7 +55,7 @@ fun MainScreen(onLogout: () -> Unit) {
             ) {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
-                
+
                 items.forEach { item ->
                     NavigationBarItem(
                         icon = { Icon(item.icon, contentDescription = item.title) },
@@ -76,7 +79,7 @@ fun MainScreen(onLogout: () -> Unit) {
                         )
                     )
                 }
-                
+
                 // More trigger
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.MoreHoriz, contentDescription = "More") },

@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            AppTheme {
+            AppTheme(darkTheme = false) {
                 Scaffold(
                     topBar = {
                         VelaTopBar(

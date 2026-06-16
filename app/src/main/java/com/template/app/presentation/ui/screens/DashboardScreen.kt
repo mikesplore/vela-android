@@ -37,127 +37,162 @@ fun DashboardScreen(
     val colorScheme = MaterialTheme.colorScheme
 
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+
+        state.health?.let { health ->
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
             ) {
-
-                state.health?.let { health ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
-                    ) {
-                        StatusCard(
-                            health = health
-                        )
-                    }
-                }
-
-                state.network?.let { network ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(450, delayMillis = 60)) + slideInVertically(tween(450, delayMillis = 60)) { it / 4 }
-                    ) {
-                        NetworkCard(network, state.wifi)
-                    }
-                }
-
-                state.resolution?.let { resolution ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(450, delayMillis = 120)) + slideInVertically(tween(450, delayMillis = 120)) { it / 4 }
-                    ) {
-                        SystemResolutionCard(resolution)
-                    }
-                }
-
-                if (state.processes.isNotEmpty() || !state.activeWindow.isNullOrBlank()) {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(450, delayMillis = 180)) + slideInVertically(tween(450, delayMillis = 180)) { it / 4 }
-                    ) {
-                        ProcessSummaryCard(
-                            processes = state.processes,
-                            activeWindow = state.activeWindow,
-                            currentLimit = state.processLimit,
-                            cpuUsage = state.cpuUsage,
-                            ramUsage = state.ramUsage,
-                            onToggleLimit = { viewModel.toggleProcessLimit() }
-                        )
-                    }
-                }
-
-                state.audio?.let { audio ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(450, delayMillis = 240)) + slideInVertically(tween(450, delayMillis = 240)) { it / 4 }
-                    ) {
-                        AudioControlCard(
-                            audioState = audio,
-                            onVolumeChange = { viewModel.setVolume(it) },
-                            onMuteToggle = { viewModel.setMute(it) }
-                        )
-                    }
-                }
-
-                if (state.isConnected) {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(450, delayMillis = 300)) + slideInVertically(tween(450, delayMillis = 300)) { it / 4 }
-                    ) {
-                        BrightnessControlCard(
-                            brightness = state.brightness,
-                            onBrightnessChange = { viewModel.setBrightness(it) }
-                        )
-                    }
-                }
-
-                if (state.disks.isNotEmpty()) {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(450, delayMillis = 360)) + slideInVertically(tween(450, delayMillis = 360)) { it / 4 }
-                    ) {
-                        DiskUsageCard(state.disks)
-                    }
-                }
-
-                state.media?.let { media ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(450, delayMillis = 420)) + slideInVertically(tween(450, delayMillis = 420)) { it / 4 }
-                    ) {
-                        MediaBar(
-                            media = media,
-                            onTogglePlayPause = { viewModel.togglePlayPause() }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(96.dp))
+                StatusCard(
+                    health = health
+                )
             }
+        }
 
-            // Full-screen loading state
-            if (state.isRefreshing && state.health == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(colorScheme.background.copy(alpha = 0.7f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(
-                            color = colorScheme.secondary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Connecting to agent…", fontSize = 13.sp, color = colorScheme.onSurfaceVariant)
-                    }
-                }
+        state.network?.let { network ->
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(450, delayMillis = 60)) + slideInVertically(
+                    tween(
+                        450,
+                        delayMillis = 60
+                    )
+                ) { it / 4 }
+            ) {
+                NetworkCard(network, state.wifi)
             }
+        }
+
+        state.resolution?.let { resolution ->
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(450, delayMillis = 120)) + slideInVertically(
+                    tween(
+                        450,
+                        delayMillis = 120
+                    )
+                ) { it / 4 }
+            ) {
+                SystemResolutionCard(resolution)
+            }
+        }
+
+        if (state.processes.isNotEmpty() || !state.activeWindow.isNullOrBlank()) {
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(450, delayMillis = 180)) + slideInVertically(
+                    tween(
+                        450,
+                        delayMillis = 180
+                    )
+                ) { it / 4 }
+            ) {
+                ProcessSummaryCard(
+                    processes = state.processes,
+                    activeWindow = state.activeWindow,
+                    currentLimit = state.processLimit,
+                    cpuUsage = state.cpuUsage,
+                    ramUsage = state.ramUsage,
+                    onToggleLimit = { viewModel.toggleProcessLimit() }
+                )
+            }
+        }
+
+        state.audio?.let { audio ->
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(450, delayMillis = 240)) + slideInVertically(
+                    tween(
+                        450,
+                        delayMillis = 240
+                    )
+                ) { it / 4 }
+            ) {
+                AudioControlCard(
+                    audioState = audio,
+                    onVolumeChange = { viewModel.setVolume(it) },
+                    onMuteToggle = { viewModel.setMute(it) }
+                )
+            }
+        }
+
+        if (state.isConnected) {
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(450, delayMillis = 300)) + slideInVertically(
+                    tween(
+                        450,
+                        delayMillis = 300
+                    )
+                ) { it / 4 }
+            ) {
+                BrightnessControlCard(
+                    brightness = state.brightness,
+                    onBrightnessChange = { viewModel.setBrightness(it) }
+                )
+            }
+        }
+
+        if (state.disks.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(450, delayMillis = 360)) + slideInVertically(
+                    tween(
+                        450,
+                        delayMillis = 360
+                    )
+                ) { it / 4 }
+            ) {
+                DiskUsageCard(state.disks)
+            }
+        }
+
+        state.media?.let { media ->
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(450, delayMillis = 420)) + slideInVertically(
+                    tween(
+                        450,
+                        delayMillis = 420
+                    )
+                ) { it / 4 }
+            ) {
+                MediaBar(
+                    media = media,
+                    onTogglePlayPause = { viewModel.togglePlayPause() }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(96.dp))
+    }
+
+    // Full-screen loading state
+    if (state.isRefreshing && state.health == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colorScheme.background.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(
+                    color = colorScheme.secondary,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Connecting to agent…", fontSize = 13.sp, color = colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 
 
 
@@ -188,16 +223,30 @@ fun DashboardFabMenu(
     ) {
         AnimatedVisibility(
             visible = isExpanded,
-            enter = fadeIn(tween(220)) + expandVertically(tween(220), expandFrom = Alignment.Bottom),
-            exit = fadeOut(tween(180)) + shrinkVertically(tween(180), shrinkTowards = Alignment.Bottom)
+            enter = fadeIn(tween(220)) + expandVertically(
+                tween(220),
+                expandFrom = Alignment.Bottom
+            ),
+            exit = fadeOut(tween(180)) + shrinkVertically(
+                tween(180),
+                shrinkTowards = Alignment.Bottom
+            )
         ) {
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OrbitalFabItem(onClick = onScreenshot, icon = Icons.Default.PhotoCamera, label = "Screenshot")
+                OrbitalFabItem(
+                    onClick = onScreenshot,
+                    icon = Icons.Default.PhotoCamera,
+                    label = "Screenshot"
+                )
                 OrbitalFabItem(onClick = onLock, icon = Icons.Default.Lock, label = "Lock Screen")
-                OrbitalFabItem(onClick = onPlayPause, icon = Icons.Default.PlayArrow, label = "Play / Pause")
+                OrbitalFabItem(
+                    onClick = onPlayPause,
+                    icon = Icons.Default.PlayArrow,
+                    label = "Play / Pause"
+                )
             }
         }
 
@@ -264,7 +313,12 @@ fun OrbitalFabItem(onClick: () -> Unit, icon: ImageVector, label: String) {
             containerColor = colorScheme.secondaryContainer,
             elevation = FloatingActionButtonDefaults.elevation(2.dp)
         ) {
-            Icon(icon, contentDescription = null, tint = colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
@@ -282,7 +336,12 @@ fun ErrorMessage(msg: String) {
             .background(colorScheme.error.copy(alpha = 0.10f))
             .padding(14.dp)
     ) {
-        Icon(Icons.Default.ErrorOutline, null, tint = colorScheme.error, modifier = Modifier.size(18.dp))
+        Icon(
+            Icons.Default.ErrorOutline,
+            null,
+            tint = colorScheme.error,
+            modifier = Modifier.size(18.dp)
+        )
         Spacer(modifier = Modifier.width(10.dp))
         Text(msg, color = colorScheme.error, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }

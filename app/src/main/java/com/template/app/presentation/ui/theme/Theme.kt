@@ -6,36 +6,48 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = md_theme_light_primary,
-    onPrimary = md_theme_light_onPrimary,
-    primaryContainer = md_theme_light_primaryContainer,
-    secondary = md_theme_light_secondary,
-    background = md_theme_light_background,
-    surface = md_theme_light_surface
+    primary = LightAccentFill,
+    onPrimary = Color.White,
+    primaryContainer = LightAccentTintBg,
+    onPrimaryContainer = LightAccentText,
+    secondary = LightAccentFill,
+    onSecondary = Color.White,
+    background = LightBaseBg,
+    onBackground = LightTextPrimary,
+    surface = LightBaseBg,
+    onSurface = LightTextPrimary,
+    surfaceVariant = LightSurfaceFill,
+    onSurfaceVariant = LightTextSecondary,
+    outline = LightBorder,
+    outlineVariant = LightDivider,
+    error = LightDanger,
+    onError = Color.White
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = md_theme_dark_primary,
-    onPrimary = md_theme_dark_onPrimary,
-    primaryContainer = md_theme_dark_primaryContainer,
-    secondary = md_theme_dark_secondary,
-    onSecondary = md_theme_dark_onSecondary,
-    secondaryContainer = md_theme_dark_secondaryContainer,
-    tertiary = md_theme_dark_tertiary,
-    background = md_theme_dark_background,
-    onBackground = md_theme_dark_onBackground,
-    surface = md_theme_dark_surface,
-    onSurface = md_theme_dark_onSurface,
-    surfaceVariant = md_theme_dark_surfaceVariant,
-    onSurfaceVariant = md_theme_dark_onSurfaceVariant,
-    outline = md_theme_dark_outline,
-    error = md_theme_dark_error
+    primary = DarkAccentFill,
+    onPrimary = Color.White,
+    primaryContainer = DarkAccentTintBg,
+    onPrimaryContainer = DarkAccentText,
+    secondary = DarkAccentFill,
+    onSecondary = Color.White,
+    background = DarkBaseBg,
+    onBackground = DarkTextPrimary,
+    surface = DarkBaseBg,
+    onSurface = DarkTextPrimary,
+    surfaceVariant = DarkSurfaceFill,
+    onSurfaceVariant = DarkTextSecondary,
+    outline = DarkBorder,
+    outlineVariant = DarkDivider,
+    error = DarkDanger,
+    onError = Color.White
 )
 
 @Composable

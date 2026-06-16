@@ -52,7 +52,17 @@ interface VelaRepository {
     
     // Network
     suspend fun getNetworkInfo(): Resource<VelaNetworkInfo>
-    suspend fun getWifiStatus(): Resource<String> // SSID
+    suspend fun getNetworkLocation(): Resource<VelaNetworkInfo>
+    suspend fun getWifiStatus(): Resource<VelaWifiStatus>
+    suspend fun getWifiList(): Resource<List<VelaWifiNetwork>>
+    suspend fun connectWifi(ssid: String, password: String): Resource<Unit>
+    suspend fun disconnectWifi(): Resource<Unit>
+    suspend fun toggleWifi(enabled: Boolean): Resource<Unit>
+    suspend fun pingHost(host: String, count: Int): Resource<VelaPingResult>
+    suspend fun runSpeedTest(): Resource<VelaSpeedTest>
+    suspend fun getBluetoothDevices(): Resource<List<VelaBluetoothDevice>>
+    suspend fun pairBluetooth(deviceId: String): Resource<Unit>
+    suspend fun unpairBluetooth(deviceId: String): Resource<Unit>
     
     // Notifications
     suspend fun getNotifications(): Resource<List<VelaNotification>>

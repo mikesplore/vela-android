@@ -308,11 +308,6 @@ private fun ProcessRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = "PID ${process.pid}",
-                fontSize = 11.sp,
-                color = cs.onSurfaceVariant.copy(alpha = 0.5f)
-            )
         }
         Text(
             text = String.format(Locale.ROOT, "%.1f%%", process.cpu),

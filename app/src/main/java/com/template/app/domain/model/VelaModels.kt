@@ -1,7 +1,5 @@
 package com.template.app.domain.model
 
-import android.graphics.Bitmap
-
 data class VelaHealth(
     val status: String,
     val uptimeSeconds: Long
@@ -10,7 +8,15 @@ data class VelaHealth(
 data class VelaNetworkInfo(
     val localIp: String,
     val publicIp: String,
-    val interfaceName: String
+    val interfaceName: String,
+    val location: VelaLocation? = null
+)
+
+data class VelaLocation(
+    val country: String?,
+    val city: String?,
+    val lat: Double?,
+    val lon: Double?
 )
 
 data class VelaAudioState(
@@ -54,7 +60,34 @@ data class VelaNotification(
 data class VelaWifiStatus(
     val connected: Boolean,
     val ssid: String?,
-    val signal: Int?
+    val signal: Int?,
+    val isEnabled: Boolean = true,
+    val availableNetworks: List<VelaWifiNetwork> = emptyList()
+)
+
+data class VelaWifiNetwork(
+    val ssid: String,
+    val signal: Int
+)
+
+data class VelaPingResult(
+    val host: String,
+    val lossPercent: Double,
+    val avgRttMs: Double,
+    val transmitted: Int,
+    val received: Int
+)
+
+data class VelaSpeedTest(
+    val downloadMbps: Double,
+    val uploadMbps: Double,
+    val pingMs: Double
+)
+
+data class VelaBluetoothDevice(
+    val id: String,
+    val name: String,
+    val isPaired: Boolean
 )
 
 data class VelaBrightness(
