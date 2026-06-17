@@ -4,12 +4,16 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -35,12 +39,14 @@ fun MediaScreen(
     val mediaState by viewModel.mediaState.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
+    // 1. Add Scroll State
+    val scrollState = rememberScrollState()
+
     val isPlaying = mediaState?.status?.contains("play", ignoreCase = true) == true
     val position = mediaState?.positionSeconds ?: 0.0
     val length = mediaState?.lengthSeconds ?: 1.0
     val progress = if (length > 0) (position / length).toFloat() else 0f
 
-    // 1. Vinyl Rotation Animation
     val infiniteTransition = rememberInfiniteTransition(label = "VinylRotation")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -52,7 +58,6 @@ fun MediaScreen(
         label = "RotationAngle"
     )
 
-    // Local slider state for smooth dragging
     var sliderPosition by remember(progress) { mutableFloatStateOf(progress) }
     var isDragging by remember { mutableStateOf(false) }
     val displayProgress = if (isDragging) sliderPosition else progress
@@ -62,23 +67,12 @@ fun MediaScreen(
             .fillMaxSize()
             .background(colorScheme.background)
     ) {
-        // 2. Ambient Background (Blurred Art)
-        if (mediaState?.artUrl != null) {
-            AsyncImage(
-                model = mediaState?.artUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(60.dp),
-                contentScale = ContentScale.Crop,
-                alpha = 0.25f
-            )
-        }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .verticalScroll(scrollState)
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -98,23 +92,22 @@ fun MediaScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(0.1f))
+            // 3. Replace weight Spacers with fixed heights
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. Circular Vinyl Art
+            // Circular Vinyl Art
             Box(
                 modifier = Modifier
                     .size(300.dp)
                     .rotate(if (isPlaying) rotation else 0f),
                 contentAlignment = Alignment.Center
             ) {
-                // Vinyl Plate
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     shape = CircleShape,
                     color = Color(0xFF121212),
                     shadowElevation = 12.dp
                 ) {
-                    // Groove texture simulation
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -130,7 +123,6 @@ fun MediaScreen(
                     )
                 }
 
-                // Album Art (Center)
                 Box(
                     modifier = Modifier
                         .size(150.dp)
@@ -153,8 +145,7 @@ fun MediaScreen(
                             tint = colorScheme.primary.copy(alpha = 0.8f)
                         )
                     }
-                    
-                    // Center Hole
+
                     Box(
                         modifier = Modifier
                             .size(20.dp)
@@ -164,7 +155,7 @@ fun MediaScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.1f))
+            Spacer(modifier = Modifier.height(48.dp))
 
             // Track Info
             Column(
@@ -180,10 +171,7 @@ fun MediaScreen(
                     maxLines = 1,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .basicMarquee(
-                            iterations = Int.MAX_VALUE, // Keeps scrolling infinitely
-                            repeatDelayMillis = 2000    // Pause for 2 seconds before repeating
-                        )
+                        .basicMarquee(iterations = Int.MAX_VALUE, repeatDelayMillis = 2000)
                         .padding(horizontal = 16.dp)
                 )
                 Text(
@@ -193,10 +181,7 @@ fun MediaScreen(
                     modifier = Modifier
                         .padding(top = 4.dp)
                         .fillMaxWidth()
-                        .basicMarquee(
-                            iterations = Int.MAX_VALUE,
-                            repeatDelayMillis = 3000
-                        )
+                        .basicMarquee(iterations = Int.MAX_VALUE, repeatDelayMillis = 3000)
                         .padding(horizontal = 24.dp),
                     textAlign = TextAlign.Center,
                     maxLines = 1
@@ -253,12 +238,12 @@ fun MediaScreen(
             ) {
                 IconButton(
                     onClick = { viewModel.playPrevious() },
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = "Previous",
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(36.dp),
                         tint = colorScheme.onSurface
                     )
                 }
@@ -281,18 +266,19 @@ fun MediaScreen(
 
                 IconButton(
                     onClick = { viewModel.playNext() },
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
                         contentDescription = "Next",
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(36.dp),
                         tint = colorScheme.onSurface
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.2f))
+            // Bottom padding to ensure content isn't cut off by navigation bars
+            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }

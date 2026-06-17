@@ -112,4 +112,16 @@ class SchedulerViewModel @Inject constructor(
             }
         }
     }
+
+    // In SchedulerViewModel.kt, add this helper:
+    fun formatToIsoTimestamp(dateMillis: Long, hour: Int, minute: Int): String {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US)
+        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = dateMillis
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+        calendar.set(java.util.Calendar.MINUTE, minute)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        return sdf.format(calendar.time)
+    }
 }

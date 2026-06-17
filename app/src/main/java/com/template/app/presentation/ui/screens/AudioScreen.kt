@@ -7,10 +7,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -25,10 +25,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.template.app.domain.model.VelaAudioDevice
+import com.template.app.presentation.ui.components.SectionHeader
 import com.template.app.presentation.viewmodel.AudioViewModel
 import kotlin.math.atan2
 
@@ -37,6 +39,8 @@ fun AudioScreen(
     viewModel: AudioViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    // Create scroll state for the whole screen
+    val scrollState = rememberScrollState()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -45,6 +49,8 @@ fun AudioScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // Make the entire column scrollable
+                .verticalScroll(scrollState)
                 .padding(horizontal = 24.dp)
         ) {
             // Volume Ring Zone
@@ -65,6 +71,9 @@ fun AudioScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Microphone Control
+            SectionHeader("Microphone")
+            Spacer(modifier = Modifier.height(10.dp))
+
             MicControlSection(
                 isMicMuted = uiState.audioState?.micMuted ?: false,
                 onToggleMicMute = { viewModel.toggleMicMute() }
@@ -76,16 +85,20 @@ fun AudioScreen(
                 color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 0.5.dp
             )
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Device Selection Section
-            SectionLabel("Output device", modifier = Modifier.padding(top = 24.dp))
+            SectionHeader("Output device")
+            Spacer(modifier = Modifier.height(10.dp))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 40.dp), // Added extra bottom padding for better scroll clearance
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(uiState.devices) { device ->
+                uiState.devices.forEach { device ->
                     DeviceItem(
                         device = device,
                         isSelected = device.isActive,
@@ -245,7 +258,6 @@ private fun MicControlSection(
     onToggleMicMute: () -> Unit
 ) {
     Column {
-        SectionLabel("Microphone")
         Surface(
             onClick = onToggleMicMute,
             shape = RoundedCornerShape(16.dp),
@@ -326,16 +338,6 @@ private fun MicControlSection(
     }
 }
 
-@Composable
-private fun SectionLabel(label: String, modifier: Modifier = Modifier) {
-    Text(
-        text = label.uppercase(),
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(bottom = 12.dp)
-    )
-}
 
 @Composable
 private fun DeviceItem(
@@ -375,9 +377,11 @@ private fun DeviceItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = device.name,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "${device.type} • ${if (isSelected) "Active" else "Available"}",

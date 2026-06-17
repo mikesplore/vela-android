@@ -128,6 +128,7 @@ fun SettingsScreen(
 
         // --- APPEARANCE SECTION ---
         SectionHeader(title = "APPEARANCE")
+        Spacer(modifier = Modifier.height(14.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)

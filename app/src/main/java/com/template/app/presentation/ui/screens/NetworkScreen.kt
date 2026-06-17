@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.template.app.domain.model.*
+import com.template.app.presentation.ui.components.SectionHeader
 import com.template.app.presentation.viewmodel.NetworkViewModel
 
 @Composable
@@ -138,6 +139,7 @@ fun NetworkScreen(
             NetworkSection(label = "PING") {
                 var host by remember { mutableStateOf("") }
                 var count by remember { mutableStateOf("4") }
+                Spacer(Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier
@@ -217,6 +219,7 @@ fun NetworkScreen(
         // Speed Test Section
         item {
             NetworkSection(label = "SPEED TEST") {
+                Spacer(Modifier.height(14.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -302,14 +305,7 @@ private fun NetworkSection(
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 20.dp)
     ) {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = cs.onSurfaceVariant.copy(alpha = 0.5f),
-            letterSpacing = 0.8.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 14.dp)
-        )
+        SectionHeader(label)
         content()
     }
 }

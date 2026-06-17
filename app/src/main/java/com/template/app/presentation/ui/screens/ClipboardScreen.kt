@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.template.app.presentation.ui.components.SectionHeader
 import com.template.app.presentation.viewmodel.ClipboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -213,14 +214,7 @@ private fun VelaCard(
             .background(Color.Transparent) // Card is now transparent
             .padding(vertical = 8.dp)
     ) {
-        Text(
-            text = title.uppercase(),
-            fontSize = 13.sp, // Title made a bit bigger
-            fontWeight = FontWeight.Bold,
-            color = colorScheme.onSurfaceVariant,
-            letterSpacing = 1.5.sp,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+        SectionHeader(title)
         // Industrial divider line matching Dashboard style
         Spacer(modifier = Modifier.height(8.dp))
         HorizontalDivider(
