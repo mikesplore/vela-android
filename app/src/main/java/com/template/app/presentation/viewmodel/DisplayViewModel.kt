@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaResolution
 import com.template.app.domain.repository.VelaRepository
@@ -26,7 +27,8 @@ data class DisplayState(
 
 @HiltViewModel
 class DisplayViewModel @Inject constructor(
-    private val repository: VelaRepository
+    private val repository: VelaRepository,
+    private val appEventManager: AppEventManager // Added
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DisplayState())
@@ -39,13 +41,13 @@ class DisplayViewModel @Inject constructor(
 
     private fun observeData() {
         repository.observeBrightness()
-            .onEach { b -> 
-                b?.let { _state.update { s -> s.copy(brightness = it.value) } } 
+            .onEach { b ->
+                b?.let { _state.update { s -> s.copy(brightness = it.value) } }
             }
             .launchIn(viewModelScope)
 
         repository.observeResolution()
-            .onEach { res -> 
+            .onEach { res ->
                 res?.let { r ->
                     _state.update { s ->
                         s.copy(
@@ -82,12 +84,12 @@ class DisplayViewModel @Inject constructor(
                             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                             _state.update { it.copy(screenshot = bitmap) }
                         } catch (e: Exception) {
-                            _state.update { it.copy(error = "Failed to decode screenshot") }
+                            appEventManager.showActionErrorSnackbar("Failed to decode screenshot")
                         }
                     }
                 }
                 is Resource.Error -> {
-                    _state.update { it.copy(error = result.message) }
+                    appEventManager.showActionErrorSnackbar(result.message)
                 }
                 else -> {}
             }
@@ -102,7 +104,12 @@ class DisplayViewModel @Inject constructor(
 
     fun rotate(orientation: String) {
         viewModelScope.launch {
-            repository.rotateDisplay(orientation)
+            appEventManager.setLoading(true)
+            val result = repository.rotateDisplay(orientation)
+            if (result is Resource.Error) {
+                appEventManager.showActionErrorSnackbar(result.message)
+            }
+            appEventManager.setLoading(false)
         }
     }
 
@@ -122,7 +129,11 @@ class DisplayViewModel @Inject constructor(
     }
 
     fun lockScreen() {
-        viewModelScope.launch { repository.lockDisplay() }
+        viewModelScope.launch {
+            val result = repository.lockDisplay()
+            if (result is Resource.Success) {
+                appEventManager.showActionSuccessSnackbar("Screen locked")
+            }
+        }
     }
-
 }

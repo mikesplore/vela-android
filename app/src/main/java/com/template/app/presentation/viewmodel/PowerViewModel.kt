@@ -2,6 +2,7 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.repository.VelaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,14 +14,13 @@ import javax.inject.Inject
 
 data class PowerState(
     val isLoading: Boolean = false,
-    val successMessage: String? = null,
-    val errorMessage: String? = null,
     val currentProfile: String? = null
 )
 
 @HiltViewModel
 class PowerViewModel @Inject constructor(
-    private val velaRepository: VelaRepository
+    private val velaRepository: VelaRepository,
+    private val appEventManager: AppEventManager // Added
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PowerState())
@@ -39,11 +39,11 @@ class PowerViewModel @Inject constructor(
     }
 
     fun sleep() {
-         executePowerAction("Sleep") { velaRepository.sleep() }
+        executePowerAction("Sleep") { velaRepository.sleep() }
     }
 
     fun hibernate() {
-         executePowerAction("Hibernate") { velaRepository.hibernate() }
+        executePowerAction("Hibernate") { velaRepository.hibernate() }
     }
 
     fun scheduleShutdown(at: String) {
@@ -54,21 +54,26 @@ class PowerViewModel @Inject constructor(
         executePowerAction("Cancel Scheduled Shutdown") { velaRepository.cancelShutdown() }
     }
 
-
     fun setPowerProfile(profile: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, successMessage = null, errorMessage = null) }
+            appEventManager.setLoading(true)
+            _state.update { it.copy(isLoading = true) }
             when (val result = velaRepository.setPowerProfile(profile)) {
                 is Resource.Success -> {
-                    _state.update { it.copy(isLoading = false, successMessage = "Power profile set to $profile", currentProfile = profile) }
+                    _state.update { it.copy(isLoading = false, currentProfile = profile) }
+                    appEventManager.showActionSuccessSnackbar("Power profile set to $profile")
                 }
+
                 is Resource.Error -> {
-                    _state.update { it.copy(isLoading = false, errorMessage = result.message) }
+                    _state.update { it.copy(isLoading = false) }
+                    appEventManager.showActionErrorSnackbar(result.message)
                 }
+
                 else -> {
                     _state.update { it.copy(isLoading = false) }
                 }
             }
+            appEventManager.setLoading(false)
         }
     }
 
@@ -78,6 +83,7 @@ class PowerViewModel @Inject constructor(
                 is Resource.Success -> {
                     _state.update { it.copy(currentProfile = result.data) }
                 }
+
                 else -> {}
             }
         }
@@ -85,22 +91,24 @@ class PowerViewModel @Inject constructor(
 
     private fun executePowerAction(actionName: String, action: suspend () -> Resource<Unit>) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, successMessage = null, errorMessage = null) }
+            appEventManager.setLoading(true)
+            _state.update { it.copy(isLoading = true) }
             when (val result = action()) {
                 is Resource.Success -> {
-                    _state.update { it.copy(isLoading = false, successMessage = "$actionName signal sent to host") }
+                    _state.update { it.copy(isLoading = false) }
+                    appEventManager.showActionSuccessSnackbar("$actionName signal sent to host")
                 }
+
                 is Resource.Error -> {
-                    _state.update { it.copy(isLoading = false, errorMessage = result.message) }
+                    _state.update { it.copy(isLoading = false) }
+                    appEventManager.showActionErrorSnackbar(result.message)
                 }
+
                 else -> {
                     _state.update { it.copy(isLoading = false) }
                 }
             }
+            appEventManager.setLoading(false)
         }
-    }
-
-    fun clearMessages() {
-        _state.update { it.copy(successMessage = null, errorMessage = null) }
     }
 }

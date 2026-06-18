@@ -21,7 +21,7 @@ interface VelaApiService {
 
     // ── Display ───────────────────────────────────────────────────────────────
 
-    @GET("display/screenshott")
+    @GET("display/screenshot")
     suspend fun getScreenshot(): ScreenshotResponse
 
     @POST("display/record")

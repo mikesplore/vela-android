@@ -1,5 +1,7 @@
 package com.template.app.presentation.ui
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -31,12 +33,10 @@ object Routes {
     const val NOTIFICATIONS = "notifications"
     const val SETTINGS = "settings"
 
-    const val USERS = "users"
-    const val USER_DETAIL = "user/{userId}"
-
-    fun userDetail(userId: String) = "user/$userId"
+    const val NETWORK_LOGS = "network_logs"
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavHost(
     navController: NavHostController,

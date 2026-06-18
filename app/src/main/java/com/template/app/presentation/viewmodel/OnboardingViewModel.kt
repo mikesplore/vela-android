@@ -2,6 +2,7 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaConfig
 import com.template.app.domain.repository.VelaRepository
@@ -19,7 +20,8 @@ class OnboardingViewModel @Inject constructor(
     private val getSettingsUseCase: GetSettingsUseCase,
     private val saveSettingsUseCase: SaveSettingsUseCase,
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
-    private val velaRepository: VelaRepository
+    private val velaRepository: VelaRepository,
+    private val appEventManager: AppEventManager // Added
 ) : ViewModel() {
 
     private val _currentPage = MutableStateFlow(0)
@@ -92,37 +94,41 @@ class OnboardingViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            appEventManager.setLoading(true)
             _testState.value = TestResult.Testing
-            // Temporarily save settings to test connection since VelaRepository 
-            // uses the dynamic interceptor which reads from DB
             saveSettingsUseCase(urlInput, _apiToken.value.trim())
-            
-            // Instead of health, check config to get username and home directory
+
             when (val result = velaRepository.getConfig()) {
                 is Resource.Success -> {
                     val config = result.data
                     _username.value = config.username
                     _testState.value = TestResult.Success(config.username)
-                    // Config is already saved to persistence by VelaRepositoryImpl.getConfig()
+                    appEventManager.showActionSuccessSnackbar("Connected as ${config.username}")
                 }
+
                 is Resource.Error -> {
                     _testState.value = TestResult.Error(result.message)
+                    appEventManager.showActionErrorSnackbar(result.message)
                 }
+
                 else -> {}
             }
+            appEventManager.setLoading(false)
         }
     }
 
     fun completeOnboarding(isDemo: Boolean) {
         viewModelScope.launch {
+            appEventManager.setLoading(true)
             if (isDemo) {
                 saveSettingsUseCase("http://demo.vela-agent.local", "demo_secret")
-                // In demo mode we might want to set a default config if server call isn't made
                 velaRepository.setConfig(VelaConfig("/home/demo", "Demo User"))
             } else {
                 saveSettingsUseCase(_baseUrl.value.trim(), _apiToken.value.trim())
             }
             completeOnboardingUseCase()
+            appEventManager.showActionSuccessSnackbar("Setup complete!")
+            appEventManager.setLoading(false)
         }
     }
 }

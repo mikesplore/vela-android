@@ -2,6 +2,7 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.*
 import com.template.app.domain.repository.VelaRepository
@@ -25,7 +26,8 @@ data class NetworkState(
 
 @HiltViewModel
 class NetworkViewModel @Inject constructor(
-    private val velaRepository: VelaRepository
+    private val velaRepository: VelaRepository,
+    private val appEventManager: AppEventManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(NetworkState())
@@ -56,17 +58,12 @@ class NetworkViewModel @Inject constructor(
 
     fun toggleWifi(enabled: Boolean) {
         viewModelScope.launch {
+            appEventManager.setLoading(true)
             _state.update { it.copy(isWifiToggling = true) }
             velaRepository.toggleWifi(enabled)
             velaRepository.getWifiStatus()
             _state.update { it.copy(isWifiToggling = false) }
-        }
-    }
-
-    fun disconnectWifi() {
-        viewModelScope.launch {
-            velaRepository.disconnectWifi()
-            velaRepository.getWifiStatus()
+            appEventManager.setLoading(false)
         }
     }
 
@@ -74,8 +71,16 @@ class NetworkViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isPinging = true, pingResult = null) }
             when (val result = velaRepository.pingHost(host, count)) {
-                is Resource.Success -> _state.update { it.copy(pingResult = result.data) }
-                is Resource.Error -> _state.update { it.copy(error = result.message) }
+                is Resource.Success -> {
+                    _state.update { it.copy(pingResult = result.data) }
+                    appEventManager.showActionSuccessSnackbar("Ping completed")
+                }
+
+                is Resource.Error -> {
+                    _state.update { it.copy(error = result.message) }
+                    appEventManager.showActionErrorSnackbar(result.message)
+                }
+
                 else -> {}
             }
             _state.update { it.copy(isPinging = false) }
@@ -84,17 +89,27 @@ class NetworkViewModel @Inject constructor(
 
     fun runSpeedTest() {
         viewModelScope.launch {
+            appEventManager.showActionSuccessSnackbar("Starting speed test...")
             _state.update { it.copy(isSpeedTesting = true, speedTest = null) }
             when (val result = velaRepository.runSpeedTest()) {
-                is Resource.Success -> _state.update { it.copy(speedTest = result.data) }
-                is Resource.Error -> _state.update { it.copy(error = result.message) }
+                is Resource.Success -> {
+                    _state.update { it.copy(speedTest = result.data) }
+                    appEventManager.showActionSuccessSnackbar("Speed test finished")
+                }
+
+                is Resource.Error -> {
+                    _state.update { it.copy(error = result.message) }
+                    appEventManager.showActionErrorSnackbar(result.message)
+                }
+
                 else -> {}
             }
             _state.update { it.copy(isSpeedTesting = false) }
         }
     }
 
-    fun fetchBluetoothDevices() {
+
+fun fetchBluetoothDevices() {
         viewModelScope.launch {
             _state.update { it.copy(isBluetoothLoading = true) }
             when (val result = velaRepository.getBluetoothDevices()) {

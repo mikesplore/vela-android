@@ -29,6 +29,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.template.app.core.utils.AppEventManager
 import com.template.app.presentation.ui.Routes
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -99,7 +100,7 @@ fun MainScreen(onLogout: () -> Unit) {
             startDestination = Routes.DASHBOARD,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Routes.DASHBOARD) { DashboardScreen(onLogout = onLogout) }
+            composable(Routes.DASHBOARD) { DashboardScreen() }
             composable(Routes.DISPLAY) { DisplayScreen() }
             composable(Routes.AUDIO) { AudioScreen() }
             composable(Routes.MEDIA) { MediaScreen() }
@@ -114,6 +115,7 @@ fun MainScreen(onLogout: () -> Unit) {
             composable(Routes.POWER) { 
                 PowerScreen(onBack = { navController.popBackStack() }) 
             }
+            composable(Routes.NETWORK_LOGS) { NetworkLogsScreen() }
             composable(Routes.CLIPBOARD) { ClipboardScreen() }
             composable(Routes.INPUT_CONTROL) { InputControlScreen() }
             composable(Routes.NOTIFICATIONS) { NotificationsScreen() }
@@ -158,7 +160,8 @@ fun MoreMenuGrid(onNavigate: (String) -> Unit) {
         NavigationItem("Clipboard", Routes.CLIPBOARD, Icons.Default.ContentPaste),
         NavigationItem("Input", Routes.INPUT_CONTROL, Icons.Default.Keyboard),
         NavigationItem("Alerts", Routes.NOTIFICATIONS, Icons.Default.Notifications),
-        NavigationItem("Settings", Routes.SETTINGS, Icons.Default.Settings)
+        NavigationItem("Settings", Routes.SETTINGS, Icons.Default.Settings),
+        NavigationItem("Network Logs", Routes.NETWORK_LOGS, Icons.Default.List)
     )
 
     Column(

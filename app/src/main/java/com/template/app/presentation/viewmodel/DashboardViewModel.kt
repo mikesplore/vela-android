@@ -69,9 +69,14 @@ class DashboardViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeData() {
         // Observe Sync Status
-        dataSyncManager.isSyncing
-            .onEach { syncing -> _state.update { it.copy(isRefreshing = syncing) } }
-            .launchIn(viewModelScope)
+        combine(
+            dataSyncManager.isSyncing,
+            velaRepository.observeHealth()
+        ) { syncing, health ->
+            // Show overlay ONLY if syncing AND we don't have health data yet (initial load)
+            val shouldShowLoading = syncing && health == null
+            appEventManager.setLoading(shouldShowLoading)
+        }.launchIn(viewModelScope)
 
         // Observe all data streams from Room DB
         velaRepository.observeHealth()

@@ -41,8 +41,8 @@ import com.template.app.presentation.viewmodel.DashboardViewModel
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun DashboardScreen(
-    onLogout: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
+
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
@@ -203,26 +203,6 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(96.dp))
 
     }}
-
-    // Full-screen loading state
-    if (state.isRefreshing && state.health == null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(colorScheme.background.copy(alpha = 0.7f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(
-                    color = colorScheme.secondary,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Connecting to agent…", fontSize = 13.sp, color = colorScheme.onSurfaceVariant)
-            }
-        }
-    }
 
     state.screenshot?.let { bitmap ->
         ScreenshotSheet(

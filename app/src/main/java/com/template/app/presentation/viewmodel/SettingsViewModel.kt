@@ -2,6 +2,7 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.AppThemeMode
 import com.template.app.domain.repository.VelaRepository
@@ -34,7 +35,8 @@ class SettingsViewModel @Inject constructor(
     private val getSettingsUseCase: GetSettingsUseCase,
     private val saveSettingsUseCase: SaveSettingsUseCase,
     private val clearSettingsUseCase: ClearSettingsUseCase,
-    private val velaRepository: VelaRepository
+    private val velaRepository: VelaRepository,
+    private val appEventManager: AppEventManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -78,34 +80,44 @@ class SettingsViewModel @Inject constructor(
 
     fun testConnection() {
         viewModelScope.launch {
+            appEventManager.setLoading(true)
             _state.update { it.copy(isTesting = true, testResult = null) }
-            
+
             saveSettingsUseCase(_state.value.baseUrl.trim(), _state.value.apiToken.trim(), _state.value.themeMode)
 
             when (val result = velaRepository.getHealth()) {
                 is Resource.Success -> {
                     _state.update { it.copy(isTesting = false, testResult = TestResult.Success) }
+                    appEventManager.showActionSuccessSnackbar("Connection successful!")
                 }
                 is Resource.Error -> {
                     _state.update { it.copy(isTesting = false, testResult = TestResult.Error(result.message)) }
+                    appEventManager.showActionErrorSnackbar("Connection failed: ${result.message}")
                 }
                 else -> {
                     _state.update { it.copy(isTesting = false) }
                 }
             }
+            appEventManager.setLoading(false)
         }
     }
 
     fun saveSettings() {
         viewModelScope.launch {
+            appEventManager.setLoading(true)
             saveSettingsUseCase(_state.value.baseUrl.trim(), _state.value.apiToken.trim(), _state.value.themeMode)
+            appEventManager.showActionSuccessSnackbar("Settings saved")
+            appEventManager.setLoading(false)
         }
     }
 
     fun clearCredentials(onComplete: () -> Unit) {
         viewModelScope.launch {
+            appEventManager.setLoading(true)
             clearSettingsUseCase()
+            appEventManager.showActionSuccessSnackbar("Credentials cleared")
             onComplete()
+            appEventManager.setLoading(false)
         }
     }
 

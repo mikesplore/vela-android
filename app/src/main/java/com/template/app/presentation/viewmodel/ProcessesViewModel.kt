@@ -2,6 +2,7 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.utils.AppEventManager
 import com.template.app.domain.model.VelaProcess
 import com.template.app.domain.repository.VelaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +27,8 @@ enum class ProcessesSortType {
 
 @HiltViewModel
 class ProcessesViewModel @Inject constructor(
-    private val velaRepository: VelaRepository
+    private val velaRepository: VelaRepository,
+    private val appEventManager: AppEventManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProcessesState())
@@ -67,8 +69,16 @@ class ProcessesViewModel @Inject constructor(
 
     fun killProcess(pid: Int) {
         viewModelScope.launch {
-            velaRepository.killProcess(pid)
-            refresh()
+            appEventManager.setLoading(true)
+            try {
+                velaRepository.killProcess(pid)
+                appEventManager.showActionSuccessSnackbar("Process killed successfully")
+                refresh()
+            } catch (e: Exception) {
+                appEventManager.showActionErrorSnackbar("Failed to kill process: ${e.message}")
+            } finally {
+                appEventManager.setLoading(false)
+            }
         }
     }
 
@@ -76,9 +86,14 @@ class ProcessesViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            velaRepository.getProcesses()
-            velaRepository.getActiveWindow()
-            _state.update { it.copy(isLoading = false) }
+            try {
+                velaRepository.getProcesses()
+                velaRepository.getActiveWindow()
+            } catch (e: Exception) {
+                appEventManager.showActionErrorSnackbar("Failed to refresh: ${e.message}")
+            } finally {
+                _state.update { it.copy(isLoading = false) }
+            }
         }
     }
 }

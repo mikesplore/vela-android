@@ -3,6 +3,7 @@ package com.template.app.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaBreadcrumb
 import com.template.app.domain.model.VelaDiskUsage
@@ -34,7 +35,8 @@ data class FilesState(
 @HiltViewModel
 class FilesViewModel @Inject constructor(
     private val repository: VelaRepository,
-    private val observeVelaConfigUseCase: ObserveVelaConfigUseCase
+    private val observeVelaConfigUseCase: ObserveVelaConfigUseCase,
+    private val appEventManager: AppEventManager
 ) : ViewModel() {
 
     private val _currentPath = MutableStateFlow<String?>(null)
@@ -49,10 +51,7 @@ class FilesViewModel @Inject constructor(
             .onEach { disks -> _state.update { it.copy(disks = disks) } }
             .launchIn(viewModelScope)
 
-        // 2. Load initial path from saved Config
         viewModelScope.launch {
-            // We take(1) because we usually only want to set the initial path once
-            // when the screen opens.
             observeVelaConfigUseCase()
                 .filterNotNull()
                 .firstOrNull()?.let { config ->
@@ -71,7 +70,6 @@ class FilesViewModel @Inject constructor(
                 repository.observeFiles(path) 
             }
             .onEach { files -> 
-                Log.d("FilesViewModel", "Observer emitted ${files.size} files for current path")
                 _state.update { it.copy(files = files) } 
             }
             .launchIn(viewModelScope)
@@ -79,8 +77,6 @@ class FilesViewModel @Inject constructor(
 
     fun loadFiles(path: String?, showHidden: Boolean = _state.value.showHidden) {
         val requestedPath = path ?: ""
-
-        // Check if we already have files for this path to decide which spinner to show
         val isFirstLoad = _state.value.files.isEmpty() || requestedPath != _currentPath.value
 
         _state.update {
@@ -99,9 +95,6 @@ class FilesViewModel @Inject constructor(
                 val data = result.data
                 val actualPath = data.currentPath
 
-                // Step 3: Sync internal state with the ACTUAL path returned by the server
-                // This ensures that if the server redirects us (e.g. following a symlink),
-                // our observer and UI stay in sync.
                 if (actualPath != _currentPath.value) {
                     _currentPath.value = actualPath
                 }
@@ -114,7 +107,7 @@ class FilesViewModel @Inject constructor(
 
                 updateBreadcrumbs(actualPath)
             } else if (result is Resource.Error) {
-                _state.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message)
             }
             _state.update { it.copy(isLoading = false, isRefreshing = false) }
         }
@@ -166,58 +159,62 @@ class FilesViewModel @Inject constructor(
 
     fun createDirectory(name: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isPerformingAction = true) }
+            appEventManager.setLoading(true)
             val current = _state.value.currentPath
             val path = if (current.isEmpty()) name else if (current.endsWith("/")) "$current$name" else "$current/$name"
             val result = repository.makeDirectory(path)
             if (result is Resource.Success) {
+                appEventManager.showActionSuccessSnackbar("Directory created")
                 loadFiles(_currentPath.value)
             } else if (result is Resource.Error) {
-                _state.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message)
             }
-            _state.update { it.copy(isPerformingAction = false) }
+            appEventManager.setLoading(false)
         }
     }
 
     fun deleteFile(file: VelaFileInfo) {
         viewModelScope.launch {
-            _state.update { it.copy(isPerformingAction = true) }
+            appEventManager.setLoading(true)
             val result = repository.deleteFile(file.path)
             if (result is Resource.Success) {
+                appEventManager.showActionSuccessSnackbar("File deleted")
                 loadFiles(_currentPath.value)
             } else if (result is Resource.Error) {
-                _state.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message)
             }
-            _state.update { it.copy(isPerformingAction = false) }
+            appEventManager.setLoading(false)
         }
     }
 
     fun renameFile(file: VelaFileInfo, newName: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isPerformingAction = true) }
+            appEventManager.setLoading(true)
             val parentPath = file.path.substringBeforeLast("/", "")
             val newPath = if (parentPath.isEmpty()) newName else "$parentPath/$newName"
             val result = repository.renameFile(file.path, newPath)
             if (result is Resource.Success) {
+                appEventManager.showActionSuccessSnackbar("File renamed")
                 loadFiles(_currentPath.value)
             } else if (result is Resource.Error) {
-                _state.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message)
             }
-            _state.update { it.copy(isPerformingAction = false) }
+            appEventManager.setLoading(false)
         }
     }
 
     fun uploadFile(localFile: File) {
         viewModelScope.launch {
-            _state.update { it.copy(isUploading = true) }
+            appEventManager.setLoading(true)
             val result = repository.uploadFile(_state.value.currentPath, localFile)
             if (result is Resource.Success) {
+                appEventManager.showActionSuccessSnackbar("File uploaded")
                 loadFiles(_currentPath.value)
                 localFile.delete()
             } else if (result is Resource.Error) {
-                _state.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message)
             }
-            _state.update { it.copy(isUploading = false) }
+            appEventManager.setLoading(false)
         }
     }
 
@@ -229,48 +226,33 @@ class FilesViewModel @Inject constructor(
 
     fun zipFiles(files: List<VelaFileInfo>, outputName: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isPerformingAction = true) }
+            appEventManager.setLoading(true)
             val paths = files.map { it.path }
             val current = _state.value.currentPath
             val outputPath = if (current.isEmpty()) outputName else if (current.endsWith("/")) "$current$outputName" else "$current/$outputName"
             val result = repository.zipFiles(paths, outputPath)
             if (result is Resource.Success) {
+                appEventManager.showActionSuccessSnackbar("Files zipped")
                 loadFiles(_currentPath.value)
             } else if (result is Resource.Error) {
-                _state.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message)
             }
-            _state.update { it.copy(isPerformingAction = false) }
+            appEventManager.setLoading(false)
         }
     }
 
     fun unzipFile(file: VelaFileInfo) {
         viewModelScope.launch {
-            _state.update { it.copy(isPerformingAction = true) }
+            appEventManager.setLoading(true)
             val destination = file.path.removeSuffix(".zip")
             val result = repository.unzipFile(file.path, destination)
             if (result is Resource.Success) {
+                appEventManager.showActionSuccessSnackbar("File unzipped")
                 loadFiles(_currentPath.value)
             } else if (result is Resource.Error) {
-                _state.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message)
             }
-            _state.update { it.copy(isPerformingAction = false) }
+            appEventManager.setLoading(false)
         }
     }
-
-//    private fun fetchFiles(){
-//        viewModelScope.launch {
-//            val result = repository.getConfig()
-//            if (result is Resource.Success) {
-//                val config = result.data
-//                // Store home directory and greet the user
-//                _state.update { it.copy(username = config.username) }
-//
-//                // 2. Load files using the retrieved home directory
-//                loadFiles(config.home_directory)
-//            } else {
-//                // Fallback if config fails
-//                loadFiles(null)
-//            }
-//        }
-//    }
 }

@@ -1,6 +1,5 @@
 package com.template.app.core.network
 
-import android.util.Log
 import com.squareup.moshi.Moshi
 import com.template.app.core.data.remote.dto.ApiErrorResponse
 import com.template.app.core.utils.AppEventManager
@@ -23,7 +22,14 @@ class ErrorInterceptor @Inject constructor(
         val response = try {
             chain.proceed(request)
         } catch (e: IOException) {
-            appEventManager.showSnackbar("Network error — check your connection")
+            val errorMessage = "Network error — check your connection"
+            appEventManager.showNetworkErrorSnackbar(errorMessage)
+            appEventManager.addNetworkErrorLog(
+                url = request.url.toString(),
+                method = request.method,
+                code = 0,
+                message = errorMessage
+            )
             throw e
         }
 
@@ -44,7 +50,14 @@ class ErrorInterceptor @Inject constructor(
                 500 -> "Server error, please try again later"
                 else -> "Error ${response.code}: ${response.message}"
             }
-            appEventManager.showSnackbar(errorMessage)
+            appEventManager.showNetworkErrorSnackbar(errorMessage)
+            
+            appEventManager.addNetworkErrorLog(
+                url = request.url.toString(),
+                method = request.method,
+                code = response.code,
+                message = errorMessage
+            )
 
             // Re-create the response body since we've consumed it
             return response.newBuilder()

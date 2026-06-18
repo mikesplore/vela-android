@@ -1,8 +1,8 @@
 package com.template.app.presentation.viewmodel
 
-import androidx.compose.animation.core.copy
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaService
 import com.template.app.domain.repository.VelaRepository
@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
 
 data class MaintenanceUiState(
     val services: List<VelaService> = emptyList(),
@@ -28,7 +27,8 @@ data class MaintenanceUiState(
 
 @HiltViewModel
 class MaintenanceViewModel @Inject constructor(
-    private val repository: VelaRepository
+    private val repository: VelaRepository,
+    private val appEventManager: AppEventManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MaintenanceUiState())
@@ -61,40 +61,56 @@ class MaintenanceViewModel @Inject constructor(
             is Resource.Success -> {
                 _uiState.update { it.copy(services = result.data ?: emptyList()) }
             }
-
             is Resource.Error -> {
-                _uiState.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message ?: "Failed to load services")
             }
-
             else -> Unit
         }
     }
 
-    fun startService(name: String) = performServiceAction { repository.startService(name) }
-    fun stopService(name: String) = performServiceAction { repository.stopService(name) }
-    fun restartService(name: String) = performServiceAction { repository.restartService(name) }
+    fun startService(name: String) = performServiceAction(name, "started") { repository.startService(name) }
+    fun stopService(name: String) = performServiceAction(name, "stopped") { repository.stopService(name) }
+    fun restartService(name: String) = performServiceAction(name, "restarted") { repository.restartService(name) }
 
-    private fun performServiceAction(action: suspend () -> Resource<Unit>) {
+    private fun performServiceAction(serviceName: String, actionVerb: String, action: suspend () -> Resource<Unit>) {
         viewModelScope.launch {
+            appEventManager.setLoading(true)
             when (val result = action()) {
-                is Resource.Success -> loadServices() // Refresh list after action
-                is Resource.Error -> _uiState.update { it.copy(error = result.message) }
+                is Resource.Success -> {
+                    appEventManager.showActionSuccessSnackbar("Service $serviceName $actionVerb")
+                    loadServices()
+                }
+                is Resource.Error -> {
+                    appEventManager.showActionErrorSnackbar(result.message)
+                }
                 else -> Unit
             }
+            appEventManager.setLoading(false)
         }
     }
 
     // --- Quick Actions ---
     fun clearCache() {
         viewModelScope.launch {
-            repository.clearCache()
-            // You could show a Toast or Snackbar here via a UI event
+            appEventManager.setLoading(true)
+            when (val result = repository.clearCache()) {
+                is Resource.Success -> appEventManager.showActionSuccessSnackbar("Cache cleared")
+                is Resource.Error -> appEventManager.showActionErrorSnackbar(result.message)
+                else -> Unit
+            }
+            appEventManager.setLoading(false)
         }
     }
 
     fun syncTime() {
         viewModelScope.launch {
-            repository.syncTime()
+            appEventManager.setLoading(true)
+            when (val result = repository.syncTime()) {
+                is Resource.Success -> appEventManager.showActionSuccessSnackbar("Time synchronized")
+                is Resource.Error -> appEventManager.showActionErrorSnackbar(result.message)
+                else -> Unit
+            }
+            appEventManager.setLoading(false)
         }
     }
 
@@ -103,11 +119,7 @@ class MaintenanceViewModel @Inject constructor(
         when (val result = repository.checkUpdates()) {
             is Resource.Success -> {
                 _uiState.update { state ->
-                    state.copy(
-                        // result.data is VelaMaintenanceUpdate
-                        // .packages is the List<VelaPackageUpdate>
-                        availableUpdates = result.data.packages
-                    )
+                    state.copy(availableUpdates = result.data.packages)
                 }
             }
             else -> Unit
@@ -116,19 +128,18 @@ class MaintenanceViewModel @Inject constructor(
 
     fun runUpdates() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            appEventManager.setLoading(true)
             when (val result = repository.runUpdates()) {
                 is Resource.Success -> {
+                    appEventManager.showActionSuccessSnackbar("Updates completed successfully")
                     _uiState.update { it.copy(availableUpdates = emptyList()) }
                 }
-
                 is Resource.Error -> {
-                    _uiState.update { it.copy(error = result.message) }
+                    appEventManager.showActionErrorSnackbar(result.message ?: "Update process failed")
                 }
-
                 else -> Unit
             }
-            _uiState.update { it.copy(isLoading = false) }
+            appEventManager.setLoading(false)
         }
     }
 
@@ -151,7 +162,6 @@ class MaintenanceViewModel @Inject constructor(
                 is Resource.Success -> {
                     _uiState.update { it.copy(recentLogs = result.data?.lines ?: emptyList()) }
                 }
-
                 else -> Unit
             }
         }
