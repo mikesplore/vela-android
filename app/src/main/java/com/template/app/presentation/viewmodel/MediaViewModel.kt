@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaMediaState
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,22 +15,22 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MediaViewModel @Inject constructor(
-    private val velaRepository: VelaRepository,
+    private val mediaRepository: MediaRepository,
     private val appEventManager: AppEventManager // Added
 ) : ViewModel() {
 
     fun refreshMedia() {
         viewModelScope.launch {
-            velaRepository.getNowPlaying()
+            mediaRepository.getNowPlaying()
         }
     }
 
-    val mediaState: StateFlow<VelaMediaState?> = velaRepository.observeMedia()
+    val mediaState: StateFlow<VelaMediaState?> = mediaRepository.observeMedia()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun togglePlayPause() {
         viewModelScope.launch {
-            if (velaRepository.togglePlayPause() is Resource.Error) {
+            if (mediaRepository.togglePlayPause() is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Action failed")
             }
             refreshMedia()
@@ -39,7 +39,7 @@ class MediaViewModel @Inject constructor(
 
     fun playNext() {
         viewModelScope.launch {
-            if (velaRepository.mediaNext() is Resource.Error) {
+            if (mediaRepository.mediaNext() is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Action failed")
             }
             refreshMedia()
@@ -48,7 +48,7 @@ class MediaViewModel @Inject constructor(
 
     fun playPrevious() {
         viewModelScope.launch {
-            if (velaRepository.mediaPrevious() is Resource.Error) {
+            if (mediaRepository.mediaPrevious() is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Action failed")
             }
             refreshMedia()
@@ -57,7 +57,7 @@ class MediaViewModel @Inject constructor(
 
     fun seekTo(seconds: Int) {
         viewModelScope.launch {
-            if (velaRepository.mediaSeek(seconds) is Resource.Error) {
+            if (mediaRepository.mediaSeek(seconds) is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Action failed")
             }
             refreshMedia()

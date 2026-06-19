@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.*
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.MonitorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,7 +31,7 @@ data class MonitorState(
 
 @HiltViewModel
 class MonitorViewModel @Inject constructor(
-    private val repository: VelaRepository
+    private val repository: MonitorRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MonitorState())

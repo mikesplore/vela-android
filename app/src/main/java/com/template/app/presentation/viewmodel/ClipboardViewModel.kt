@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.ClipboardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +23,7 @@ data class ClipboardState(
 
 @HiltViewModel
 class ClipboardViewModel @Inject constructor(
-    private val repository: VelaRepository,
+    private val repository: ClipboardRepository,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 

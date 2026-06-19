@@ -2,7 +2,6 @@ package com.template.app.core.sync
 
 import android.util.Log
 import com.template.app.domain.repository.UserRepository
-import com.template.app.domain.repository.VelaRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -6,7 +6,7 @@ import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaAudioDevice
 import com.template.app.domain.model.VelaAudioState
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.AudioRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,7 +21,7 @@ data class AudioUiState(
 
 @HiltViewModel
 class AudioViewModel @Inject constructor(
-    private val velaRepository: VelaRepository,
+    private val audioRepository: AudioRepository,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 
@@ -34,11 +34,11 @@ class AudioViewModel @Inject constructor(
     }
 
     private fun observeData() {
-        velaRepository.observeAudio()
+        audioRepository.observeAudio()
             .onEach { state -> _uiState.update { it.copy(audioState = state) } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeAudioDevices()
+        audioRepository.observeAudioDevices()
             .onEach { devices -> _uiState.update { it.copy(devices = devices) } }
             .launchIn(viewModelScope)
     }
@@ -46,15 +46,15 @@ class AudioViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            velaRepository.getVolume()
-            velaRepository.getAudioDevices()
+            audioRepository.getVolume()
+            audioRepository.getAudioDevices()
             _uiState.update { it.copy(isLoading = false) }
         }
     }
 
     fun setVolume(value: Int) {
         viewModelScope.launch {
-            val result = velaRepository.setVolume(value)
+            val result = audioRepository.setVolume(value)
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to set volume")
             }
@@ -63,7 +63,7 @@ class AudioViewModel @Inject constructor(
 
     fun volumeUp() {
         viewModelScope.launch {
-           val result =  velaRepository.volumeUp()
+           val result =  audioRepository.volumeUp()
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to increase volume")
             }
@@ -72,7 +72,7 @@ class AudioViewModel @Inject constructor(
 
     fun volumeDown() {
         viewModelScope.launch {
-           val result =  velaRepository.volumeDown()
+           val result =  audioRepository.volumeDown()
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to decrease volume")
             }
@@ -82,7 +82,7 @@ class AudioViewModel @Inject constructor(
     fun toggleMute() {
         val currentState = _uiState.value.audioState ?: return
         viewModelScope.launch {
-           val result =  velaRepository.setMute(!currentState.muted)
+           val result =  audioRepository.setMute(!currentState.muted)
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to ${if (currentState.muted) "unmute" else "mute"} audio")
             }
@@ -92,7 +92,7 @@ class AudioViewModel @Inject constructor(
     fun toggleMicMute() {
         val currentState = _uiState.value.audioState ?: return
         viewModelScope.launch {
-            val result = velaRepository.setMicMute(!currentState.micMuted)
+            val result = audioRepository.setMicMute(!currentState.micMuted)
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to ${if (currentState.micMuted) "unmute" else "mute"} microphone")
             }
@@ -101,11 +101,11 @@ class AudioViewModel @Inject constructor(
 
     fun selectDevice(device: VelaAudioDevice) {
         viewModelScope.launch {
-            val result= velaRepository.setOutputDevice(device.id)
+            val result= audioRepository.setOutputDevice(device.id)
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to select device")
             }
-            velaRepository.getAudioDevices() // Refresh to update selection state
+            audioRepository.getAudioDevices() // Refresh to update selection state
         }
     }
 }

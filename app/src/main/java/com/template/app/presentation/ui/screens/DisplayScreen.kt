@@ -97,7 +97,7 @@ fun DisplayScreen(
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
-                        "Live preview",
+                        "Current preview",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         fontSize = 10.sp,
                         color = Color.White.copy(alpha = 0.6f)
@@ -123,24 +123,6 @@ fun DisplayScreen(
             DataRow("Current", state.resolution?.let { "${it.width}×${it.height} @ ${it.refresh} Hz" } ?: "Unknown")
             DataRow("Output", state.resolution?.output ?: "Unknown")
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 22.dp), color = colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-            // Rotation
-            SectionHeader("Rotation")
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("normal", "left", "right", "inverted").forEach { orientation ->
-                    RotationPill(
-                        label = orientation.replaceFirstChar { it.uppercase() },
-                        isSelected = state.rotation == orientation,
-                        onClick = { viewModel.rotate(orientation) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 22.dp), color = colorScheme.outlineVariant.copy(alpha = 0.3f))
 

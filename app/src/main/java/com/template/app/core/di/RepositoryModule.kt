@@ -5,7 +5,6 @@ import com.template.app.core.data.repository.UserRepositoryImpl
 import com.template.app.core.data.repository.VelaRepositoryImpl
 import com.template.app.domain.repository.SettingsRepository
 import com.template.app.domain.repository.UserRepository
-import com.template.app.domain.repository.VelaRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

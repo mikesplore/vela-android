@@ -8,7 +8,14 @@ import com.template.app.core.sync.DataSyncManager
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.*
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.AudioRepository
+import com.template.app.domain.repository.DisplayRepository
+import com.template.app.domain.repository.FilesystemRepository
+import com.template.app.domain.repository.HealthRepository
+import com.template.app.domain.repository.MediaRepository
+import com.template.app.domain.repository.MonitorRepository
+import com.template.app.domain.repository.NetworkRepository
+import com.template.app.domain.repository.ProcessesRepository
 import com.template.app.domain.usecase.ClearSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,9 +47,19 @@ data class DashboardState(
     val screenshot: Bitmap? = null
 )
 
+
+
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val velaRepository: VelaRepository,
+    private val processRepository: ProcessesRepository,
+    private val monitorRepository: MonitorRepository,
+    private val mediaRepository: MediaRepository,
+    private val displayRepository: DisplayRepository,
+    private val audioRepository: AudioRepository,
+    private val fileRepository: FilesystemRepository,
+    private val healthRepository: HealthRepository,
+    private val networkRepository: NetworkRepository,
+
     private val clearSettingsUseCase: ClearSettingsUseCase,
     private val dataSyncManager: DataSyncManager,
     private val appEventManager: AppEventManager
@@ -71,7 +88,7 @@ class DashboardViewModel @Inject constructor(
         // Observe Sync Status
         combine(
             dataSyncManager.isSyncing,
-            velaRepository.observeHealth()
+            healthRepository.observeHealth()
         ) { syncing, health ->
             // Show overlay ONLY if syncing AND we don't have health data yet (initial load)
             val shouldShowLoading = syncing && health == null
@@ -79,7 +96,7 @@ class DashboardViewModel @Inject constructor(
         }.launchIn(viewModelScope)
 
         // Observe all data streams from Room DB
-        velaRepository.observeHealth()
+        healthRepository.observeHealth()
             .onEach { health -> 
                 _state.update { it.copy(
                     health = health, 
@@ -89,27 +106,27 @@ class DashboardViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        velaRepository.observeNetwork()
+        networkRepository.observeNetwork()
             .onEach { network -> _state.update { it.copy(network = network) } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeWifi()
+        networkRepository.observeWifi()
             .onEach { wifi -> _state.update { it.copy(wifi = wifi) } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeAudio()
+        audioRepository.observeAudio()
             .onEach { audio -> _state.update { it.copy(audio = audio) } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeMedia()
+        mediaRepository.observeMedia()
             .onEach { media -> _state.update { it.copy(media = media) } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeActiveWindow()
+        processRepository.observeActiveWindow()
             .onEach { window -> _state.update { it.copy(activeWindow = window) } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeDisks()
+        fileRepository.observeDisks()
             .onEach { rawDisks ->
                 val formattedDisks = rawDisks.map { disk ->
                     disk.copy(
@@ -121,24 +138,21 @@ class DashboardViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        velaRepository.observeBrightness()
+        displayRepository.observeBrightness()
             .onEach { b -> b?.let { brightness -> _state.update { it.copy(brightness = brightness.value) } } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeCpuUsage()
+        monitorRepository.observeCpuUsage()
             .onEach { cpu -> cpu?.let { usage -> _state.update { it.copy(cpuUsage = usage.overall) } } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeRamUsage()
+        monitorRepository.observeRamUsage()
             .onEach { ram -> ram?.let { usage -> _state.update { it.copy(ramUsage = usage.percent) } } }
             .launchIn(viewModelScope)
 
-        velaRepository.observeClipboard()
-            .onEach { clip -> _state.update { it.copy(clipboardText = clip?.content ?: "") } }
-            .launchIn(viewModelScope)
 
         _processLimit
-            .flatMapLatest { limit -> velaRepository.observeProcesses(limit) }
+            .flatMapLatest { limit -> processRepository.observeProcesses(limit) }
             .onEach { processes -> _state.update { it.copy(processes = processes) } }
             .launchIn(viewModelScope)
     }
@@ -162,7 +176,7 @@ class DashboardViewModel @Inject constructor(
 
     fun setVolume(value: Int) {
         viewModelScope.launch {
-            val result = velaRepository.setVolume(value)
+            val result = audioRepository.setVolume(value)
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to set volume")
             }
@@ -171,7 +185,7 @@ class DashboardViewModel @Inject constructor(
 
     fun setMute(muted: Boolean) {
         viewModelScope.launch {
-            val result = velaRepository.setMute(muted)
+            val result = audioRepository.setMute(muted)
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to set mute")
             }
@@ -180,7 +194,7 @@ class DashboardViewModel @Inject constructor(
 
     fun setBrightness(value: Int) {
         viewModelScope.launch {
-            val result = velaRepository.setBrightness(value)
+            val result = displayRepository.setBrightness(value)
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to set brightness")
             }
@@ -189,25 +203,16 @@ class DashboardViewModel @Inject constructor(
 
     fun togglePlayPause() {
         viewModelScope.launch {
-            val result = velaRepository.togglePlayPause()
+            val result = mediaRepository.togglePlayPause()
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to toggle play/pause")
             }
         }
     }
 
-    fun writeClipboard(text: String) {
-        viewModelScope.launch {
-            val result = velaRepository.writeClipboard(text)
-            if (result is Resource.Error) {
-                appEventManager.showActionErrorSnackbar("Failed to write to clipboard")
-            }
-        }
-    }
-
     fun lockScreen() {
         viewModelScope.launch {
-            val result = velaRepository.lockDisplay()
+            val result = displayRepository.lockDisplay()
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to lock screen")
             }
@@ -216,7 +221,7 @@ class DashboardViewModel @Inject constructor(
 
     fun takeScreenshot() {
         viewModelScope.launch {
-            when (val res = velaRepository.getScreenshot()) {
+            when (val res = displayRepository.getScreenshot()) {
                 is Resource.Success -> {
                     val base64Str = res.data
                     if (base64Str.isNotBlank()) {

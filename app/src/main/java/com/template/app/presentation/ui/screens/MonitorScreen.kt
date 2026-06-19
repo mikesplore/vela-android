@@ -437,58 +437,38 @@ private fun IoStat(
 
 @Composable
 private fun ThermalSection(temperatures: List<VelaTemperatureInfo>, fans: List<VelaFanInfo>) {
+    val coreTemps = temperatures.filter { it.sensor == "coretemp" }
+    if (coreTemps.isEmpty()) return
+
     Column {
-        SectionHeader("Temperatures & Fans")
+        SectionHeader("Thermal")
         Spacer(Modifier.height(8.dp))
 
-        val displaySensors = temperatures.take(3)
-        if (displaySensors.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                displaySensors.forEach { sensor ->
-                    SensorBox(
-                        label = sensor.label.ifBlank { sensor.sensor },
-                        value = "${sensor.current.toInt()}°C",
-                        statusColor = when {
-                            sensor.critical != null && sensor.current >= sensor.critical -> MaterialTheme.colorScheme.error
-                            sensor.high != null && sensor.current >= sensor.high -> Color(0xFFE8A440)
-                            else -> MaterialTheme.colorScheme.onSurface
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-        }
+        val columns = 4
+        val rows = (coreTemps.size + columns - 1) / columns
 
-        fans.forEach { fan ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Air,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        fan.sensor,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            repeat(rows) { r ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    repeat(columns) { c ->
+                        val index = r * columns + c
+                        if (index < coreTemps.size) {
+                            val sensor = coreTemps[index]
+                            SensorBox(
+                                label = sensor.label,
+                                value = "${sensor.current.toInt()}°C",
+                                statusColor = when {
+                                    sensor.critical != null && sensor.current >= sensor.critical -> MaterialTheme.colorScheme.error
+                                    sensor.high != null && sensor.current >= sensor.high -> Color(0xFFE8A440)
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
                 }
-                Text(
-                    "${fan.speedRpm} RPM",
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
             }
         }
     }

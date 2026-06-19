@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.AppThemeMode
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.HealthRepository
 import com.template.app.domain.usecase.ClearSettingsUseCase
 import com.template.app.domain.usecase.GetSettingsUseCase
 import com.template.app.domain.usecase.SaveSettingsUseCase
@@ -35,7 +35,7 @@ class SettingsViewModel @Inject constructor(
     private val getSettingsUseCase: GetSettingsUseCase,
     private val saveSettingsUseCase: SaveSettingsUseCase,
     private val clearSettingsUseCase: ClearSettingsUseCase,
-    private val velaRepository: VelaRepository,
+    private val velaRepository: HealthRepository,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 

@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaConfig
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.ConfigRepository
 import com.template.app.domain.usecase.CompleteOnboardingUseCase
 import com.template.app.domain.usecase.GetSettingsUseCase
 import com.template.app.domain.usecase.SaveSettingsUseCase
@@ -20,7 +20,7 @@ class OnboardingViewModel @Inject constructor(
     private val getSettingsUseCase: GetSettingsUseCase,
     private val saveSettingsUseCase: SaveSettingsUseCase,
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
-    private val velaRepository: VelaRepository,
+    private val velaRepository: ConfigRepository,
     private val appEventManager: AppEventManager // Added
 ) : ViewModel() {
 

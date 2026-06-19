@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaService
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.MaintenanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +27,7 @@ data class MaintenanceUiState(
 
 @HiltViewModel
 class MaintenanceViewModel @Inject constructor(
-    private val repository: VelaRepository,
+    private val repository: MaintenanceRepository,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 

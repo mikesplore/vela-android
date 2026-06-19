@@ -8,7 +8,7 @@ import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaBreadcrumb
 import com.template.app.domain.model.VelaDiskUsage
 import com.template.app.domain.model.VelaFileInfo
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.FilesystemRepository
 import com.template.app.domain.usecase.ObserveVelaConfigUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,7 +34,7 @@ data class FilesState(
 
 @HiltViewModel
 class FilesViewModel @Inject constructor(
-    private val repository: VelaRepository,
+    private val repository: FilesystemRepository,
     private val observeVelaConfigUseCase: ObserveVelaConfigUseCase,
     private val appEventManager: AppEventManager
 ) : ViewModel() {

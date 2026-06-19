@@ -9,7 +9,7 @@ import com.template.app.domain.model.VelaNetworkInfo
 import com.template.app.domain.model.VelaPingResult
 import com.template.app.domain.model.VelaSpeedTest
 import com.template.app.domain.model.VelaWifiStatus
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.NetworkRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +34,7 @@ data class NetworkState(
 
 @HiltViewModel
 class NetworkViewModel @Inject constructor(
-    private val velaRepository: VelaRepository,
+    private val velaRepository: NetworkRepository,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 

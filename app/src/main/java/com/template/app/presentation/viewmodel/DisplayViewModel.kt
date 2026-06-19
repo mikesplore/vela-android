@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaResolution
-import com.template.app.domain.repository.VelaRepository
+import com.template.app.domain.repository.DisplayRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +32,7 @@ data class DisplayState(
 
 @HiltViewModel
 class DisplayViewModel @Inject constructor(
-    private val repository: VelaRepository,
+    private val repository: DisplayRepository,
     private val appEventManager: AppEventManager // Added
 ) : ViewModel() {
 
