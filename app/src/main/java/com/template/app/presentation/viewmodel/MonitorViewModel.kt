@@ -105,39 +105,16 @@ class MonitorViewModel @Inject constructor(
         startPolling()
     }
 
+    // MonitorViewModel.kt
+
     suspend fun refreshMonitorData() {
         _state.update { it.copy(isRefreshing = true, error = null) }
-        when (val result = repository.getMonitorSnapshot()) {
-            is Resource.Success -> {
-                val snapshot = result.data
-                if (snapshot != null) {
-                    _state.update {
-                        it.copy(
-                            cpu = snapshot.cpu,
-                            ram = snapshot.ram,
-                            gpu = snapshot.gpu,
-                            diskIo = snapshot.diskIo,
-                            networkIo = snapshot.networkIo,
-                            temperatures = snapshot.temperatures,
-                            fans = snapshot.fans,
-                            sensors = snapshot.sensors,
-                            battery = snapshot.battery,
-                            topProcessesByCpu = snapshot.topProcessesByCpu,
-                            topProcessesByMemory = snapshot.topProcessesByMemory,
-                            isRefreshing = false
-                        )
-                    }
-                } else {
-                    _state.update { it.copy(isRefreshing = false) }
-                }
-            }
-            is Resource.Error -> {
-                _state.update { it.copy(isRefreshing = false, error = result.message) }
-            }
-            is Resource.Loading -> {
-                _state.update { it.copy(isRefreshing = true) }
-            }
+        // We only care about the result for error handling/loading state
+        val result = repository.getMonitorSnapshot()
+        if (result is Resource.Error) {
+            _state.update { it.copy(error = result.message) }
         }
+        _state.update { it.copy(isRefreshing = false) }
     }
 
     override fun onCleared() {

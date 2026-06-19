@@ -47,7 +47,7 @@ import com.template.app.core.data.local.entities.*
         VelaConfigEntity::class
     ],
     version = 18,
-    exportSchema = true
+    exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

@@ -197,9 +197,10 @@ fun DashboardScreen(
         }
     }
 
-    state.screenshot?.let { bitmap ->
+    if (state.isScreenshotLoading || state.screenshot != null) {
         ScreenshotSheet(
-            bitmap = bitmap,
+            bitmap = state.screenshot,
+            isLoading = state.isScreenshotLoading,
             onDismiss = { viewModel.dismissScreenshot() }
         )
     }

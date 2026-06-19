@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -86,7 +87,7 @@ fun MainScreen(onLogout: () -> Unit) {
                     icon = { Icon(Icons.Default.MoreHoriz, contentDescription = "More") },
                     label = { Text("More", fontSize = 10.sp) },
                     selected = false,
-                    onClick = { showSheet = true },
+                    onClick = { },
                     colors = NavigationBarItemDefaults.colors(
                         unselectedIconColor = colorScheme.onSurfaceVariant,
                         unselectedTextColor = colorScheme.onSurfaceVariant
@@ -125,14 +126,13 @@ fun MainScreen(onLogout: () -> Unit) {
 
         if (showSheet) {
             ModalBottomSheet(
-                onDismissRequest = { showSheet = false },
+                onDismissRequest = { },
                 sheetState = sheetState,
                 containerColor = colorScheme.surface,
                 dragHandle = { BottomSheetDefaults.DragHandle(color = colorScheme.outline) }
             ) {
                 MoreMenuGrid(
                     onNavigate = { route ->
-                        showSheet = false
                         navController.navigate(route) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
@@ -163,7 +163,7 @@ fun MoreMenuGrid(onNavigate: (String) -> Unit) {
         NavigationItem("Input", Routes.INPUT_CONTROL, Icons.Default.Keyboard),
         NavigationItem("Alerts", Routes.NOTIFICATIONS, Icons.Default.Notifications),
         NavigationItem("Settings", Routes.SETTINGS, Icons.Default.Settings),
-        NavigationItem("Network Logs", Routes.NETWORK_LOGS, Icons.Default.List)
+        NavigationItem("Network Logs", Routes.NETWORK_LOGS, Icons.AutoMirrored.Filled.List)
     )
 
     Column(

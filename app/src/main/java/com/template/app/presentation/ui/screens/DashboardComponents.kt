@@ -516,7 +516,7 @@ fun MediaBar(
                     )
                 }
                 Text(
-                    text = media.artist?.ifBlank { "—" } ?: "-",
+                    text = media.artist?.ifBlank { "Nothing playing" } ?: "-",
                     fontSize = 11.sp,
                     color = cs.onSurfaceVariant,
                     maxLines = 1,
@@ -542,43 +542,39 @@ fun MediaBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScreenshotSheet(
-    bitmap: Bitmap,
+    bitmap: Bitmap?,
+    isLoading: Boolean,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .heightIn(min = 300.dp) // Ensure it has height even when empty
                 .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                "Remote Screenshot",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(16.dp))
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Device Screenshot",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.FillWidth
-            )
-            Spacer(Modifier.height(24.dp))
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Close Preview")
+            if (isLoading) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Capturing Screenshot...", style = MaterialTheme.typography.bodyMedium)
+                }
+            } else if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "System Screenshot",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            } else {
+                // This covers the edge case where loading finished but bitmap is still null (error)
+                Text("No image available", color = MaterialTheme.colorScheme.error)
             }
         }
     }

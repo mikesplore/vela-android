@@ -44,6 +44,7 @@ data class DashboardState(
     val clipboardText: String = "",
     val error: String? = null,
     val uptimeSeconds: Long = 0,
+    val isScreenshotLoading: Boolean = false,
     val screenshot: Bitmap? = null
 )
 
@@ -59,7 +60,6 @@ class DashboardViewModel @Inject constructor(
     private val fileRepository: FilesystemRepository,
     private val healthRepository: HealthRepository,
     private val networkRepository: NetworkRepository,
-
     private val clearSettingsUseCase: ClearSettingsUseCase,
     private val dataSyncManager: DataSyncManager,
     private val appEventManager: AppEventManager
@@ -204,6 +204,7 @@ class DashboardViewModel @Inject constructor(
     fun togglePlayPause() {
         viewModelScope.launch {
             val result = mediaRepository.togglePlayPause()
+            mediaRepository.getNowPlaying()
             if (result is Resource.Error) {
                 appEventManager.showActionErrorSnackbar("Failed to toggle play/pause")
             }
@@ -220,34 +221,43 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun takeScreenshot() {
+        // Start loading immediately
+        _state.update { it.copy(isScreenshotLoading = true, screenshot = null) }
+
         viewModelScope.launch {
-            when (val res = displayRepository.getScreenshot()) {
-                is Resource.Success -> {
-                    val base64Str = res.data
-                    if (base64Str.isNotBlank()) {
-                        val cleanBase64 = if (base64Str.contains(",")) base64Str.substringAfter(",") else base64Str
-                        val bytes = android.util.Base64.decode(cleanBase64, android.util.Base64.DEFAULT)
-                        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                        _state.update { it.copy(screenshot = bitmap) }
+            try {
+                when (val res = displayRepository.getScreenshot()) {
+                    is Resource.Success -> {
+                        val base64Str = res.data
+                        if (base64Str.isNotBlank()) {
+                            val cleanBase64 = if (base64Str.contains(",")) base64Str.substringAfter(",") else base64Str
+                            val bytes = android.util.Base64.decode(cleanBase64, android.util.Base64.DEFAULT)
+                            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            _state.update { it.copy(screenshot = bitmap, isScreenshotLoading = false) }
+                        } else {
+                            _state.update { it.copy(isScreenshotLoading = false) }
+                        }
+                    }
+                    is Resource.Error -> {
+                        _state.update { it.copy(isScreenshotLoading = false) }
+                        appEventManager.showActionErrorSnackbar("Failed to take screenshot")
+                    }
+                    else -> {
+                        _state.update { it.copy(isScreenshotLoading = false) }
                     }
                 }
-                else -> {
-                    appEventManager.showActionErrorSnackbar("Failed to take screenshot")
-                }
+            } catch (e: Exception) {
+                _state.update { it.copy(isScreenshotLoading = false) }
             }
         }
     }
-    
+
     fun dismissScreenshot() {
-        _state.update { it.copy(screenshot = null) }
+        // Clear both states when dismissing
+        _state.update { it.copy(screenshot = null, isScreenshotLoading = false) }
     }
 
-    fun logout(onComplete: () -> Unit) {
-        viewModelScope.launch {
-            clearSettingsUseCase()
-            onComplete()
-        }
-    }
+
 
     private fun formatBytes(bytesStr: String?): String {
         if (bytesStr.isNullOrBlank() || bytesStr == "0") return "0.0 B"

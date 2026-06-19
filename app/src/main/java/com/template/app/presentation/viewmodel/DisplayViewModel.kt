@@ -27,6 +27,8 @@ data class DisplayState(
     val nightLightTemperature: Int = 4500, // Kelvin (1000 - 10000)
     val rotation: String = "normal",
     val isRefreshing: Boolean = false,
+    val isScreenshotLoading: Boolean = false,
+    val isNightLightChanging: Boolean = false,
     val error: String? = null
 )
 
@@ -72,34 +74,38 @@ class DisplayViewModel @Inject constructor(
             _state.update { it.copy(isRefreshing = true) }
             repository.getBrightness()
             repository.getResolution()
-            takeScreenshot()
             _state.update { it.copy(isRefreshing = false) }
         }
     }
 
     fun takeScreenshot() {
+        // Check the specific screenshot loading state
+        if (_state.value.isScreenshotLoading) return
+
         viewModelScope.launch {
-            when (val result = repository.getScreenshot()) {
-                is Resource.Success -> {
-                    val base64Str = result.data
-                    if (base64Str.isNotBlank()) {
-                        val cleanBase64 =
-                            if (base64Str.contains(",")) base64Str.substringAfter(",") else base64Str
-                        try {
-                            val bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
-                            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                            _state.update { it.copy(screenshot = bitmap) }
-                        } catch (e: Exception) {
-                            appEventManager.showActionErrorSnackbar("Failed to decode screenshot")
+            _state.update { it.copy(isScreenshotLoading = true) }
+            try {
+                when (val result = repository.getScreenshot()) {
+                    is Resource.Success -> {
+                        val base64Str = result.data
+                        if (base64Str.isNotBlank()) {
+                            val cleanBase64 = if (base64Str.contains(","))
+                                base64Str.substringAfter(",") else base64Str
+                            try {
+                                val bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                _state.update { it.copy(screenshot = bitmap) }
+                            } catch (e: Exception) {
+                                appEventManager.showActionErrorSnackbar("Failed to decode screenshot")
+                            }
                         }
                     }
+                    is Resource.Error -> appEventManager.showActionErrorSnackbar("Failed to take screenshot")
+                    else -> {}
                 }
-
-                is Resource.Error -> {
-                    appEventManager.showActionErrorSnackbar("Failed to take screenshot")
-                }
-
-                else -> {}
+            } finally {
+                // Always reset the state
+                _state.update { it.copy(isScreenshotLoading = false) }
             }
         }
     }
@@ -126,18 +132,24 @@ class DisplayViewModel @Inject constructor(
 
     fun setNightLight(enabled: Boolean, temperature: Int? = null) {
         viewModelScope.launch {
+            // 1. Enter "Changing" state
+            _state.update { it.copy(isNightLightChanging = true) }
+
             val finalTemp = temperature ?: _state.value.nightLightTemperature
             val result = repository.setNightLight(enabled, finalTemp)
+
             if (result is Resource.Success) {
                 _state.update {
                     it.copy(
                         isNightLightEnabled = enabled,
-                        nightLightTemperature = finalTemp
+                        nightLightTemperature = finalTemp,
+                        isNightLightChanging = false // Done
                     )
                 }
-
-            } else if (result is Resource.Error) {
-                appEventManager.showActionErrorSnackbar("Failed to ${if (enabled) "enable" else "disable"} night light")
+            } else {
+                // 2. Handle Error: Revert the UI state
+                _state.update { it.copy(isNightLightChanging = false) }
+                appEventManager.showActionErrorSnackbar("Failed to update Night Light")
             }
         }
     }

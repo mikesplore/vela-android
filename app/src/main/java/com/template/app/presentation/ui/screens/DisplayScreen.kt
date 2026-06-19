@@ -73,7 +73,14 @@ fun DisplayScreen(
                     .border(0.5.dp, colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                if (state.screenshot != null) {
+                if (state.isScreenshotLoading) {
+                    // Show loader based on the new specific state
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(32.dp),
+                        strokeWidth = 3.dp,
+                        color = colorScheme.primary
+                    )
+                } else if (state.screenshot != null) {
                     Image(
                         bitmap = state.screenshot!!.asImageBitmap(),
                         contentDescription = "Live preview",
@@ -88,7 +95,8 @@ fun DisplayScreen(
                         tint = colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     )
                 }
-                
+
+                // Label
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -138,8 +146,17 @@ fun DisplayScreen(
                     Icon(Icons.Default.NightsStay, contentDescription = null, tint = colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     Text("Night light", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    if (state.isNightLightChanging) {
+                        Spacer(Modifier.width(8.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = colorScheme.primary
+                        )
+                    }
                 }
                 Switch(
+                    enabled = !state.isNightLightChanging, // Disable while processing
                     checked = state.isNightLightEnabled,
                     onCheckedChange = { viewModel.setNightLight(it) },
                     colors = SwitchDefaults.colors(
