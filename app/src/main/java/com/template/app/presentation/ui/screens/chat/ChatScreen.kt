@@ -1,4 +1,4 @@
-package com.template.app.presentation.ui.screens
+package com.template.app.presentation.ui.screens.chat
 
 import android.graphics.BitmapFactory
 import android.util.Base64
@@ -7,10 +7,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -30,12 +28,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,12 +80,12 @@ fun ChatScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .imePadding()
         ) {
             Box(modifier = Modifier.weight(1f)) {
                 if (state.messages.isEmpty()) {
@@ -197,7 +197,7 @@ private fun EmptyState(onSuggestionClick: (String) -> Unit) {
             text = "Ask me anything about your PC, or pick a quick action below",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(28.dp))
@@ -217,7 +217,7 @@ private fun EmptyState(onSuggestionClick: (String) -> Unit) {
 private fun SuggestionCard(label: String, icon: ImageVector, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -324,7 +324,7 @@ private fun MessageRow(
                 color = if (message.isUser) {
                     MaterialTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                 },
                 shape = RoundedCornerShape(
                     topStart = 16.dp,
@@ -403,7 +403,6 @@ private fun ConfirmationCardUI(
 
     Surface(
         color = colorScheme.errorContainer.copy(alpha = 0.25f),
-        border = BorderStroke(1.dp, colorScheme.error.copy(alpha = 0.3f)),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.widthIn(max = 300.dp)
     ) {
@@ -510,7 +509,6 @@ private fun PinCardUI(onPinSubmit: (String) -> Unit) {
 
     Surface(
         color = colorScheme.primaryContainer.copy(alpha = 0.25f),
-        border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.2f)),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.widthIn(max = 300.dp)
     ) {
@@ -544,13 +542,8 @@ private fun PinCardUI(onPinSubmit: (String) -> Unit) {
                     Box(
                         modifier = Modifier
                             .size(14.dp)
-                            .border(
-                                1.5.dp,
-                                if (filled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.2f),
-                                CircleShape
-                            )
                             .background(
-                                if (filled) colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,
+                                if (filled) colorScheme.primary else Color.Transparent,
                                 CircleShape
                             )
                     )
@@ -594,7 +587,7 @@ private fun ChatInputBar(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.1f),
         shape = RoundedCornerShape(100.dp),
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -624,11 +617,11 @@ private fun ChatInputBar(
                 },
                 modifier = Modifier.weight(1f),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                    unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                    disabledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                    focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
                     cursorColor = colorScheme.primary
                 ),
                 maxLines = 4,
