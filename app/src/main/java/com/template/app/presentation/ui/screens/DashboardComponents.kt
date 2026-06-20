@@ -112,13 +112,10 @@ fun NetworkCard(network: VelaNetworkInfo, wifi: VelaWifiStatus?) {
             DataRow("Signal", "$sig%", valueColor = signalColor(sig, cs))
             Box(Modifier.then(rowDivider(cs)))
         }
-        if (network.interfaceName.isNotBlank()) {
-            DataRow("Interface", network.interfaceName)
-            Box(Modifier.then(rowDivider(cs)))
-        }
+
         DataRow("Local IP", network.localIp)
         Box(Modifier.then(rowDivider(cs)))
-        DataRow("Public IP", network.publicIp, valueColor = cs.onSurfaceVariant)
+        DataRow("Public IP", network.publicIp?:"-", valueColor = cs.onSurfaceVariant)
 
         wifi?.signal?.let { sig ->
             Spacer(Modifier.height(12.dp))

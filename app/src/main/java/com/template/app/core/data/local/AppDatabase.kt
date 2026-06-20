@@ -44,9 +44,12 @@ import com.template.app.core.data.local.entities.*
         VelaActiveWindowEntity::class,
         VelaScheduledTaskEntity::class,
         VelaFileEntity::class,
-        VelaConfigEntity::class
+        VelaConfigEntity::class,
+        VelaWifiNetworkEntity::class,
+        VelaBluetoothEntity::class,
+        VelaBluetoothDeviceEntity::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

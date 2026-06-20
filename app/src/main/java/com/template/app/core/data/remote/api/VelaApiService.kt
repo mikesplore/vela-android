@@ -1,6 +1,7 @@
 package com.template.app.core.data.remote.api
 
 import com.template.app.core.data.remote.dto.*
+import com.template.app.domain.model.VelaConfig
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
@@ -171,10 +172,10 @@ interface VelaApiService {
     suspend fun getWifiStatus(): WifiStatusResponse
 
     @GET("network/wifi/list")
-    suspend fun getWifiList(): WifiListResponse
+    suspend fun getWifiList(): WifiStatusResponse
 
     @POST("network/wifi/connect")
-    suspend fun connectWifi(@Body body: WifiConnectRequest): NetworkIpResponse
+    suspend fun connectWifi(@Body body: WifiConnectRequest): WifiStatusResponse
 
     @POST("network/wifi/disconnect")
     suspend fun disconnectWifi(): NetworkIpResponse
@@ -188,14 +189,23 @@ interface VelaApiService {
     @GET("network/speed-test")
     suspend fun speedTest(): SpeedTestResponse
 
+    @POST("network/bluetooth/toggle")
+    suspend fun toggleBluetooth(@Body body: BluetoothToggleRequest): NetworkIpResponse
+
     @GET("network/bluetooth/devices")
     suspend fun getBluetoothDevices(): BluetoothDevicesResponse
 
     @POST("network/bluetooth/pair")
-    suspend fun pairBluetooth(@Body body: BluetoothDeviceRequest): GenericResponse
+    suspend fun pairBluetooth(@Body body: BluetoothDeviceRequest): BluetoothActionResponse
+
+    @POST("network/bluetooth/connect")
+    suspend fun connectBluetooth(@Body body: BluetoothDeviceRequest): BluetoothActionResponse
+
+    @POST("network/bluetooth/disconnect")
+    suspend fun disconnectBluetooth(@Body body: BluetoothDeviceRequest): BluetoothActionResponse
 
     @POST("network/bluetooth/unpair")
-    suspend fun unpairBluetooth(@Body body: BluetoothDeviceRequest): GenericResponse
+    suspend fun unpairBluetooth(@Body body: BluetoothDeviceRequest): BluetoothActionResponse
 
     // ── Notifications ─────────────────────────────────────────────────────────
 

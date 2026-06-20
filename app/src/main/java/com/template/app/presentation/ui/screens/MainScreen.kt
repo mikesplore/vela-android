@@ -87,7 +87,7 @@ fun MainScreen(onLogout: () -> Unit) {
                     icon = { Icon(Icons.Default.MoreHoriz, contentDescription = "More") },
                     label = { Text("More", fontSize = 10.sp) },
                     selected = false,
-                    onClick = { },
+                    onClick = { showSheet = true },
                     colors = NavigationBarItemDefaults.colors(
                         unselectedIconColor = colorScheme.onSurfaceVariant,
                         unselectedTextColor = colorScheme.onSurfaceVariant
@@ -126,13 +126,14 @@ fun MainScreen(onLogout: () -> Unit) {
 
         if (showSheet) {
             ModalBottomSheet(
-                onDismissRequest = { },
+                onDismissRequest = { showSheet = false },
                 sheetState = sheetState,
                 containerColor = colorScheme.surface,
                 dragHandle = { BottomSheetDefaults.DragHandle(color = colorScheme.outline) }
             ) {
                 MoreMenuGrid(
                     onNavigate = { route ->
+                        showSheet = false
                         navController.navigate(route) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true

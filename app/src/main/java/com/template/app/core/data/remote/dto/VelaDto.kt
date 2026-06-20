@@ -230,10 +230,18 @@ data class NetworkIpResponse(
 
 @JsonClass(generateAdapter = true)
 data class GeoLocation(
+    val status: String? = null,
+    val query: String? = null,
     val country: String? = null,
+    val region: String? = null,
     val city: String? = null,
+    val zip: String? = null,
+    val timezone: String? = null,
+    val isp: String? = null,
+    val org: String? = null,
     val lat: Double? = null,
-    val lon: Double? = null
+    val lon: Double? = null,
+    val message: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -255,18 +263,15 @@ data class WifiStatusResponse(
 @JsonClass(generateAdapter = true)
 data class WifiNetwork(
     val ssid: String? = null,
-    val signal: Int? = null
-)
-
-@JsonClass(generateAdapter = true)
-data class WifiListResponse(
-    val networks: List<WifiNetwork>? = null
+    val security: String? = null,
+    val signal: Int? = null,
+    val active: Boolean? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class WifiConnectRequest(
     val ssid: String,
-    val password: String
+    val password: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -298,19 +303,33 @@ data class SpeedTestResponse(
 
 @JsonClass(generateAdapter = true)
 data class BluetoothDevice(
-    val id: String? = null,
+    val address: String? = null,
     val name: String? = null,
+    val connected: Boolean? = null,
     val paired: Boolean? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class BluetoothDevicesResponse(
-    val devices: List<BluetoothDevice>? = null
+    @Json(name = "connected_devices") val connectedDevices: List<BluetoothDevice>? = null,
+    @Json(name = "paired_devices") val pairedDevices: List<BluetoothDevice>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class BluetoothToggleRequest(
+    val enabled: Boolean
 )
 
 @JsonClass(generateAdapter = true)
 data class BluetoothDeviceRequest(
-    @Json(name = "device_id") val deviceId: String
+    val address: String
+)
+
+@JsonClass(generateAdapter = true)
+data class BluetoothActionResponse(
+    val address: String? = null,
+    val action: String? = null,
+    val message: String? = null
 )
 
 // ── Notifications ──
@@ -610,8 +629,7 @@ data class ServiceActionRequest(
 )
 
 @JsonClass(generateAdapter = true)
-
-data class VelaConfig(
+data class VelaConfigDto(
     @Json(name = "home_directory") val homeDirectory: String,
     val username: String,
 )

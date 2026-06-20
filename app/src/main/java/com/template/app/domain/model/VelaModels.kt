@@ -8,14 +8,18 @@ data class VelaHealth(
 
 data class VelaNetworkInfo(
     val localIp: String,
-    val publicIp: String,
-    val interfaceName: String,
+    val publicIp: String?,
     val location: VelaLocation? = null
 )
 
 data class VelaLocation(
+    val status: String?,
     val country: String?,
+    val region: String?,
     val city: String?,
+    val zip: String?,
+    val timezone: String?,
+    val isp: String?,
     val lat: Double?,
     val lon: Double?
 )
@@ -72,6 +76,7 @@ data class VelaNotification(
 data class VelaWifiStatus(
     val connected: Boolean,
     val ssid: String?,
+    val device: String?,
     val signal: Int?,
     val isEnabled: Boolean = true,
     val availableNetworks: List<VelaWifiNetwork> = emptyList()
@@ -79,7 +84,9 @@ data class VelaWifiStatus(
 
 data class VelaWifiNetwork(
     val ssid: String,
-    val signal: Int
+    val security: String?,
+    val signal: Int?,
+    val isActive: Boolean
 )
 
 data class VelaPingResult(
@@ -96,9 +103,16 @@ data class VelaSpeedTest(
     val pingMs: Double
 )
 
+data class VelaBluetoothStatus(
+    val connectedDevices: List<VelaBluetoothDevice>,
+    val pairedDevices: List<VelaBluetoothDevice>,
+    val isEnabled: Boolean = true
+)
+
 data class VelaBluetoothDevice(
-    val id: String,
+    val address: String,
     val name: String,
+    val isConnected: Boolean,
     val isPaired: Boolean
 )
 

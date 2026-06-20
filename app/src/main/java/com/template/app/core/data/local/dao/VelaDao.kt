@@ -133,11 +133,53 @@ interface VelaDao {
         }
     }
 
+    // --- Network / Wifi / Bluetooth ---
+
     @Query("SELECT * FROM vela_wifi WHERE id = 0")
     fun observeWifi(): Flow<VelaWifiEntity?>
 
     @Upsert
     suspend fun upsertWifi(wifi: VelaWifiEntity)
+
+    @Query("SELECT * FROM vela_wifi_networks")
+    fun observeWifiNetworks(): Flow<List<VelaWifiNetworkEntity>>
+
+    @Upsert
+    suspend fun upsertWifiNetworks(networks: List<VelaWifiNetworkEntity>)
+
+    @Query("DELETE FROM vela_wifi_networks")
+    suspend fun clearWifiNetworks()
+
+    @Transaction
+    suspend fun replaceWifiNetworks(networks: List<VelaWifiNetworkEntity>) {
+        clearWifiNetworks()
+        if (networks.isNotEmpty()) {
+            upsertWifiNetworks(networks)
+        }
+    }
+
+    @Query("SELECT * FROM vela_bluetooth WHERE id = 0")
+    fun observeBluetoothState(): Flow<VelaBluetoothEntity?>
+
+    @Upsert
+    suspend fun upsertBluetoothState(state: VelaBluetoothEntity)
+
+    @Query("SELECT * FROM vela_bluetooth_devices")
+    fun observeBluetoothDevices(): Flow<List<VelaBluetoothDeviceEntity>>
+
+    @Upsert
+    suspend fun upsertBluetoothDevices(devices: List<VelaBluetoothDeviceEntity>)
+
+    @Query("DELETE FROM vela_bluetooth_devices")
+    suspend fun clearBluetoothDevices()
+
+    @Transaction
+    suspend fun replaceBluetoothDevices(devices: List<VelaBluetoothDeviceEntity>) {
+        clearBluetoothDevices()
+        if (devices.isNotEmpty()) {
+            upsertBluetoothDevices(devices)
+        }
+    }
 
     @Query("SELECT * FROM vela_brightness WHERE id = 0")
     fun observeBrightness(): Flow<VelaBrightnessEntity?>

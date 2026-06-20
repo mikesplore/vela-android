@@ -216,7 +216,13 @@ class FilesViewModel @Inject constructor(
 
     fun openFile(file: VelaFileInfo) {
         viewModelScope.launch {
-            repository.openFile(file.path)
+            val result = repository.openFile(file.path)
+            if (result is Resource.Success) {
+                appEventManager.showActionSuccessSnackbar("File opened on the computer")
+            }
+            if (result is Resource.Error) {
+                appEventManager.showActionErrorSnackbar("Failed to open file")
+            }
         }
     }
 

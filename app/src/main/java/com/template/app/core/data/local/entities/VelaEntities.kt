@@ -20,16 +20,47 @@ data class VelaHealthEntity(
 data class VelaNetworkEntity(
     @PrimaryKey val id: Int = 0,
     val localIp: String,
-    val publicIp: String,
-    val interfaceName: String
+    val publicIp: String?,
+    val country: String? = null,
+    val city: String? = null,
+    val lat: Double? = null,
+    val lon: Double? = null,
+    val region: String? = null,
+    val zip: String? = null,
+    val timezone: String? = null,
+    val isp: String? = null
 ) {
-    fun toDomain() = VelaNetworkInfo(localIp, publicIp, interfaceName)
+    fun toDomain() = VelaNetworkInfo(
+        localIp = localIp,
+        publicIp = publicIp,
+        location = if (city != null || country != null) {
+            VelaLocation(
+                status = "success",
+                country = country,
+                region = region,
+                city = city,
+                zip = zip,
+                timezone = timezone,
+                isp = isp,
+                lat = lat,
+                lon = lon
+            )
+        } else null
+    )
+
     companion object {
         fun fromDomain(domain: VelaNetworkInfo) = VelaNetworkEntity(
             id = 0,
             localIp = domain.localIp,
             publicIp = domain.publicIp,
-            interfaceName = domain.interfaceName
+            country = domain.location?.country,
+            city = domain.location?.city,
+            lat = domain.location?.lat,
+            lon = domain.location?.lon,
+            region = domain.location?.region,
+            zip = domain.location?.zip,
+            timezone = domain.location?.timezone,
+            isp = domain.location?.isp
         )
     }
 }
@@ -174,18 +205,82 @@ data class VelaWifiEntity(
     @PrimaryKey val id: Int = 0,
     val connected: Boolean,
     val ssid: String?,
-    val signal: Int?
+    val device: String?,
+    val signal: Int?,
+    val isEnabled: Boolean
 ) {
-    fun toDomain() = VelaWifiStatus(connected, ssid, signal)
+    fun toDomain(networks: List<VelaWifiNetwork> = emptyList()) = VelaWifiStatus(
+        connected = connected,
+        ssid = ssid,
+        device = device,
+        signal = signal,
+        isEnabled = isEnabled,
+        availableNetworks = networks
+    )
+
     companion object {
         fun fromDomain(domain: VelaWifiStatus) = VelaWifiEntity(
             id = 0,
             connected = domain.connected,
             ssid = domain.ssid,
-            signal = domain.signal
+            device = domain.device,
+            signal = domain.signal,
+            isEnabled = domain.isEnabled
         )
     }
 }
+
+@Entity(tableName = "vela_wifi_networks")
+data class VelaWifiNetworkEntity(
+    @PrimaryKey val ssid: String,
+    val security: String?,
+    val signal: Int?,
+    val isActive: Boolean
+) {
+    fun toDomain() = VelaWifiNetwork(ssid, security, signal, isActive)
+    companion object {
+        fun fromDomain(domain: VelaWifiNetwork) = VelaWifiNetworkEntity(
+            ssid = domain.ssid,
+            security = domain.security,
+            signal = domain.signal,
+            isActive = domain.isActive
+        )
+    }
+}
+
+@Entity(tableName = "vela_bluetooth")
+data class VelaBluetoothEntity(
+    @PrimaryKey val id: Int = 0,
+    val isEnabled: Boolean = true
+) {
+    fun toDomain(connected: List<VelaBluetoothDevice>, paired: List<VelaBluetoothDevice>) =
+        VelaBluetoothStatus(connected, paired, isEnabled)
+}
+
+@Entity(tableName = "vela_bluetooth_devices")
+data class VelaBluetoothDeviceEntity(
+    @PrimaryKey val address: String,
+    val name: String,
+    val isConnected: Boolean,
+    val isPaired: Boolean
+) {
+    fun toDomain() = VelaBluetoothDevice(
+        address = address,
+        name = name,
+        isConnected = isConnected,
+        isPaired = isPaired
+    )
+
+    companion object {
+        fun fromDomain(domain: VelaBluetoothDevice) = VelaBluetoothDeviceEntity(
+            address = domain.address,
+            name = domain.name,
+            isConnected = domain.isConnected,
+            isPaired = domain.isPaired
+        )
+    }
+}
+
 
 @Entity(tableName = "vela_brightness")
 data class VelaBrightnessEntity(
