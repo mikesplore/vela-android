@@ -18,6 +18,7 @@ import javax.inject.Inject
 data class AssistantState(
     val messages: List<AssistantChatMessage> = emptyList(),
     val isLoading: Boolean = false,
+    val isInitialLoading: Boolean = true,
     val inputText: String = ""
 )
 
@@ -37,7 +38,10 @@ class AssistantViewModel @Inject constructor(
     private fun observeMessages() {
         repository.observeMessages()
             .onEach { messages ->
-                _state.update { it.copy(messages = messages) }
+                _state.update { it.copy(
+                    messages = messages,
+                    isInitialLoading = false
+                ) }
             }
             .launchIn(viewModelScope)
     }

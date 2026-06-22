@@ -41,7 +41,7 @@ class VelaInterceptor @Inject constructor(
 
         val newRequest = originalRequest.newBuilder()
             .url(newUrlBuilder.build())
-            .header("X-API-Key", settings.apiToken)
+            .header("X-Secret", settings.apiToken)
             .build()
 
         return chain.proceed(newRequest)
