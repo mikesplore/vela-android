@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BatteryFull
@@ -111,6 +113,29 @@ fun TypingIndicator(modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun PrivacyDisclaimer(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = "Messages are stored locally on this device and aren't saved on our servers.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun SuggestionCard(label: String, icon: ImageVector, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
@@ -141,7 +166,7 @@ fun SuggestionCard(label: String, icon: ImageVector, onClick: () -> Unit) {
             }
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
@@ -160,10 +185,13 @@ fun EmptyState(onSuggestionClick: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top
     ) {
+        Spacer(modifier = Modifier.height(48.dp))
+        
         Box(
             modifier = Modifier
                 .size(72.dp)
@@ -194,12 +222,12 @@ fun EmptyState(onSuggestionClick: (String) -> Unit) {
 
         Text(
             text = "Ask me anything about your PC, or pick a quick action below",
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -209,5 +237,7 @@ fun EmptyState(onSuggestionClick: (String) -> Unit) {
                 SuggestionCard(label = label, icon = icon, onClick = { onSuggestionClick(label) })
             }
         }
+        
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }

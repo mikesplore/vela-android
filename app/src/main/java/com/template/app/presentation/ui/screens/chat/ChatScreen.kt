@@ -1,7 +1,6 @@
 package com.template.app.presentation.ui.screens.chat
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -12,34 +11,50 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.template.app.domain.model.AssistantChatMessage
+import com.template.app.presentation.ui.components.VelaConfirmationSheet
+import com.template.app.presentation.ui.components.VelaPinSheet
 import com.template.app.presentation.viewmodel.AssistantViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun ChatScreen(    onBack: () -> Unit,
-                   viewModel: AssistantViewModel = hiltViewModel()
+fun ChatScreen(
+    onBack: () -> Unit,
+    viewModel: AssistantViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    // reverseLayout = true means index 0 is at the bottom
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    // Sheet States
+    var confirmationMessage by remember { mutableStateOf<AssistantChatMessage?>(null) }
+    var pinMessage by remember { mutableStateOf<AssistantChatMessage?>(null) }
 
     // Simplified list: reversed for better keyboard behavior
     val displayMessages = remember(state.messages) {
         state.messages.reversed()
     }
 
-    // Auto-scroll only needed when a NEW message is sent by user
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.lastOrNull()?.isUser == true) {
+    // Auto-scroll and Sheet Trigger for new messages or loading state changes
+    LaunchedEffect(state.messages.size, state.isLoading) {
+        if (state.messages.isNotEmpty() || state.isLoading) {
+            // Always scroll to bottom (index 0 in reverse layout)
             listState.animateScrollToItem(0)
+        }
+
+        // Trigger sheets for the latest assistant message if it requires action
+        val lastMessage = state.messages.lastOrNull()
+        if (lastMessage != null && !lastMessage.isUser) {
+            if (lastMessage.confirmation != null) {
+                confirmationMessage = lastMessage
+            } else if (lastMessage.isPinRequired) {
+                pinMessage = lastMessage
+            }
         }
     }
 
@@ -47,17 +62,15 @@ fun ChatScreen(    onBack: () -> Unit,
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .imePadding() // Apply padding to the whole screen container
+            .imePadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.weight(1f)) {
                 if (state.isInitialLoading) {
-                    // Show a loader or nothing, but NOT the empty state yet
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 } else if (state.messages.isEmpty()) {
-                    // This now only shows if we are confirmed empty
                     EmptyState(
                         onSuggestionClick = { suggestion ->
                             viewModel.onInputTextChanged(suggestion)
@@ -68,11 +81,11 @@ fun ChatScreen(    onBack: () -> Unit,
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        reverseLayout = true, // Key for chat UIs
+                        reverseLayout = true,
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Bottom)
                     ) {
-                        // If typing, show indicator at the bottom (index 0 in reverse)
+                        // In reverseLayout = true, items defined first appear at the bottom
                         if (state.isLoading) {
                             item(key = "typing-indicator") {
                                 TypingIndicator()
@@ -85,11 +98,12 @@ fun ChatScreen(    onBack: () -> Unit,
                         ) { _, message ->
                             MessageBubble(
                                 message = message,
-                                onConfirm = { viewModel.confirmAction(true) },
-                                onCancel = { viewModel.confirmAction(false) },
-                                onPinSubmit = { viewModel.submitPin(it) },
                                 modifier = Modifier.animateItem()
                             )
+                        }
+
+                        item(key = "privacy-disclaimer") {
+                            PrivacyDisclaimer()
                         }
                     }
                 }
@@ -101,11 +115,10 @@ fun ChatScreen(    onBack: () -> Unit,
                 onSend = viewModel::sendMessage,
                 isLoading = state.isLoading,
                 modifier = Modifier.navigationBarsPadding()
-                // .imePadding() removed here because it's on the root Box now
             )
         }
 
-        // Scroll to bottom button logic reversed
+        // Scroll to bottom button
         val showScrollToBottom by remember {
             derivedStateOf { listState.firstVisibleItemIndex > 2 }
         }
@@ -122,5 +135,38 @@ fun ChatScreen(    onBack: () -> Unit,
                 coroutineScope.launch { listState.animateScrollToItem(0) }
             }
         }
+    }
+
+    // Confirmation Sheet
+    confirmationMessage?.let { msg ->
+        msg.confirmation?.let { conf ->
+            VelaConfirmationSheet(
+                onDismiss = { confirmationMessage = null },
+                onConfirm = {
+                    viewModel.confirmAction(true)
+                    confirmationMessage = null
+                },
+                onCancel = {
+                    viewModel.confirmAction(false)
+                    confirmationMessage = null
+                },
+                title = conf.title,
+                message = conf.description,
+                details = conf.details,
+                confirmText = "Confirm",
+                dismissText = "Cancel"
+            )
+        }
+    }
+
+    // PIN Sheet
+    pinMessage?.let {
+        VelaPinSheet(
+            onDismiss = { pinMessage = null },
+            onSubmit = { pin ->
+                viewModel.submitPin(pin)
+                pinMessage = null
+            }
+        )
     }
 }

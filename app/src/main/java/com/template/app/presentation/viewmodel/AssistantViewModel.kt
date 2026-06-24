@@ -71,7 +71,7 @@ class AssistantViewModel @Inject constructor(
     }
 
     fun confirmAction(confirmed: Boolean) {
-        val message = if (confirmed) "yes" else "no"
+        val message = if (confirmed) "yes" else "cancel"
         _state.update { it.copy(inputText = message) }
         sendMessage()
     }

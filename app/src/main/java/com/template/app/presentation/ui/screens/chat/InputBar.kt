@@ -25,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
@@ -38,6 +40,18 @@ fun ChatInputBar(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
+    val handleSend = {
+        if (text.isNotBlank() && !isLoading) {
+            // Clear focus and hide keyboard before triggering state change to avoid flickering
+            focusManager.clearFocus()
+            keyboardController?.hide()
+            onSend()
+        }
+    }
+
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.1f),
         shape = RoundedCornerShape(100.dp),
@@ -59,12 +73,15 @@ fun ChatInputBar(
 
             TextField(
                 value = text,
-                onValueChange = onTextChanged,
+                onValueChange = { if (!isLoading) onTextChanged(it) },
+                // Removed readOnly/enabled toggling during isLoading to prevent keyboard flickering 
+                // caused by focus re-evaluation during state transitions.
+                textStyle = MaterialTheme.typography.bodyLarge,
                 placeholder = {
                     Text(
                         "Talk to me...",
                         color = colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 },
                 modifier = Modifier.weight(1f),
@@ -78,11 +95,11 @@ fun ChatInputBar(
                 ),
                 maxLines = 4,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { if (text.isNotBlank()) onSend() })
+                keyboardActions = KeyboardActions(onSend = { handleSend() })
             )
 
             IconButton(
-                onClick = onSend,
+                onClick = { handleSend() },
                 enabled = text.isNotBlank() && !isLoading,
                 modifier = Modifier
                     .size(36.dp)
@@ -103,6 +120,5 @@ fun ChatInputBar(
                 )
             }
         }
-
     }
 }

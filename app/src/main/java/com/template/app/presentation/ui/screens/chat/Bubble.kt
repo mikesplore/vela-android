@@ -1,18 +1,10 @@
 package com.template.app.presentation.ui.screens.chat
 
 import android.util.Base64
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,16 +20,15 @@ import com.template.app.domain.model.AssistantChatMessage
 @Composable
 fun MessageBubble(
     message: AssistantChatMessage,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit,
-    onPinSubmit: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
     ) {
-        val hasContent = message.text.isNotEmpty() || !message.imageBase64.isNullOrBlank() || !message.artUrl.isNullOrBlank()
+        val hasContent = message.text.isNotEmpty() || 
+                        !message.imageBase64.isNullOrBlank() || 
+                        !message.artUrl.isNullOrBlank()
         
         if (hasContent) {
             Surface(
@@ -66,7 +57,6 @@ fun MessageBubble(
                                 message.artUrl
                             } else if (!message.imageBase64.isNullOrBlank()) {
                                 try {
-                                    // Strip potential "data:image/...;base64," prefix
                                     val pureBase64 = if (message.imageBase64.contains(",")) {
                                         message.imageBase64.substringAfter(",")
                                     } else {
@@ -100,7 +90,7 @@ fun MessageBubble(
                             Text(
                                 text = message.text,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyLarge
                             )
                         } else {
                             Markdown(
@@ -115,8 +105,8 @@ fun MessageBubble(
                                     dividerColor = MaterialTheme.colorScheme.outlineVariant
                                 ),
                                 typography = markdownTypography(
-                                    paragraph = MaterialTheme.typography.bodyMedium,
-                                    code = MaterialTheme.typography.bodySmall
+                                    paragraph = MaterialTheme.typography.bodyLarge,
+                                    code = MaterialTheme.typography.bodyMedium
                                 )
                             )
                         }
