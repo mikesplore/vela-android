@@ -39,9 +39,6 @@ class DataSyncManager @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var syncJob: Job? = null
 
-    private val _isSyncing = MutableStateFlow(false)
-    val isSyncing = _isSyncing.asStateFlow()
-
     fun startSync() {
         if (syncJob?.isActive == true) return
 
@@ -54,10 +51,8 @@ class DataSyncManager @Inject constructor(
     }
 
     suspend fun performSyncCycle() {
-        if (_isSyncing.value) return
-        
+
         try {
-            _isSyncing.value = true
             Log.d("DataSyncManager", "Starting data sync cycle...")
             
             coroutineScope {
@@ -89,13 +84,10 @@ class DataSyncManager @Inject constructor(
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Log.e("DataSyncManager", "Sync cycle failed", e)
-        } finally {
-            _isSyncing.value = false
         }
     }
 
     fun stopSync() {
         syncJob?.cancel()
-        _isSyncing.value = false
     }
 }

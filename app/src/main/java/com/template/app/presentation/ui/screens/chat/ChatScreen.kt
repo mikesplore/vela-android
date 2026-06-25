@@ -47,14 +47,30 @@ fun ChatScreen(
             listState.animateScrollToItem(0)
         }
 
-        // Trigger sheets for the latest assistant message if it requires action
+        // Trigger sheets for the latest assistant message based on required actions
         val lastMessage = state.messages.lastOrNull()
         if (lastMessage != null && !lastMessage.isUser) {
-            if (lastMessage.confirmation != null) {
-                confirmationMessage = lastMessage
-            } else if (lastMessage.isPinRequired) {
-                pinMessage = lastMessage
+            val isPinRequired = lastMessage.isPinRequired
+            val requiresAuth = lastMessage.confirmation?.requiresAuth == true
+
+            when {
+                isPinRequired || requiresAuth -> {
+                    pinMessage = lastMessage
+                    confirmationMessage = null
+                }
+                lastMessage.confirmation != null -> {
+                    confirmationMessage = lastMessage
+                    pinMessage = null
+                }
+                else -> {
+                    confirmationMessage = null
+                    pinMessage = null
+                }
             }
+        } else {
+            // Clear sheets when user is typing or last message is from user
+            confirmationMessage = null
+            pinMessage = null
         }
     }
 

@@ -60,8 +60,6 @@ class DashboardViewModel @Inject constructor(
     private val fileRepository: FilesystemRepository,
     private val healthRepository: HealthRepository,
     private val networkRepository: NetworkRepository,
-    private val clearSettingsUseCase: ClearSettingsUseCase,
-    private val dataSyncManager: DataSyncManager,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 
@@ -69,9 +67,6 @@ class DashboardViewModel @Inject constructor(
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
     private val _processLimit = MutableStateFlow(5)
-
-    private val _isFabExpanded = MutableStateFlow(false)
-    val isFabExpanded: StateFlow<Boolean> = _isFabExpanded.asStateFlow()
 
 
     init {
@@ -85,16 +80,6 @@ class DashboardViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeData() {
-        // Observe Sync Status
-        combine(
-            dataSyncManager.isSyncing,
-            healthRepository.observeHealth()
-        ) { syncing, health ->
-            // Show overlay ONLY if syncing AND we don't have health data yet (initial load)
-            val shouldShowLoading = syncing && health == null
-            appEventManager.setLoading(shouldShowLoading)
-        }.launchIn(viewModelScope)
-
         // Observe all data streams from Room DB
         healthRepository.observeHealth()
             .onEach { health -> 

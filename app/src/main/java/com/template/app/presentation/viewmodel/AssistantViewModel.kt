@@ -64,7 +64,7 @@ class AssistantViewModel @Inject constructor(
             _state.update { it.copy(inputText = "", isLoading = true) }
             val result = repository.sendMessage(text)
             if (result is Resource.Error) {
-                appEventManager.showActionErrorSnackbar(result.message)
+                appEventManager.showActionErrorSnackbar("Something went wrong")
             }
             _state.update { it.copy(isLoading = false) }
         }
