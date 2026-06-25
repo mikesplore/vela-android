@@ -1,6 +1,7 @@
 package com.template.app.core.di
 
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.adapters.PolymorphicJsonAdapterFactory
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import com.template.app.BuildConfig
 import com.template.app.core.data.remote.api.UserApiService
@@ -9,6 +10,7 @@ import com.template.app.core.network.AuthInterceptor
 import com.template.app.core.network.BooleanIntAdapter
 import com.template.app.core.network.ErrorInterceptor
 import com.template.app.core.network.VelaInterceptor
+import com.template.app.domain.model.VelaStreamEvent
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,6 +38,13 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideMoshi(): Moshi = Moshi.Builder()
+        .add(
+            PolymorphicJsonAdapterFactory.of(VelaStreamEvent::class.java, "type")
+                .withSubtype(VelaStreamEvent.Thinking::class.java, "thinking")
+                .withSubtype(VelaStreamEvent.ToolExecution::class.java, "tool_execution")
+                .withSubtype(VelaStreamEvent.Content::class.java, "content")
+                .withSubtype(VelaStreamEvent.Done::class.java, "done")
+        )
         .add(BooleanIntAdapter())
         .addLast(KotlinJsonAdapterFactory())
         .build()

@@ -110,6 +110,7 @@ dependencies {
 
     implementation("com.mikepenz:multiplatform-markdown-renderer-android:0.27.0")
     implementation("com.mikepenz:multiplatform-markdown-renderer-m3-android:0.27.0")
+    implementation("com.squareup.moshi:moshi-adapters:1.15.2")
 
     testImplementation(libs.bundles.testing)
     androidTestImplementation(libs.androidx.junit)

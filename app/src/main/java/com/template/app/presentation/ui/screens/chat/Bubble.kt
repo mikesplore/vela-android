@@ -1,11 +1,14 @@
 package com.template.app.presentation.ui.screens.chat
 
 import android.util.Base64
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -21,6 +25,7 @@ import com.mikepenz.markdown.compose.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.template.app.domain.model.AssistantChatMessage
+import com.template.app.domain.model.ToolCall
 
 @Composable
 fun MessageBubble(
@@ -50,7 +55,9 @@ fun MessageBubble(
 
     val hasImage = imageData != null
     val hasText = message.text.isNotEmpty()
-    val hasContent = hasImage || hasText
+    val hasThinking = !message.thinkingText.isNullOrBlank()
+    val hasToolCalls = message.toolCalls.isNotEmpty()
+    val hasContent = hasImage || hasText || hasThinking || hasToolCalls
 
     if (!hasContent) return
 
@@ -82,6 +89,73 @@ fun MessageBubble(
                 ),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Thinking block
+                if (hasThinking) {
+                    var isExpanded by remember { mutableStateOf(false) }
+                    
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .animateContentSize()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isExpanded = !isExpanded }
+                                .padding(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
+                                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "Thought",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        }
+                        
+                        if (isExpanded) {
+                            Box(modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+                                Markdown(
+                                    content = message.thinkingText ?: "",
+                                    colors = markdownColor(
+                                        text = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        codeText = MaterialTheme.colorScheme.primary,
+                                        inlineCodeText = MaterialTheme.colorScheme.primary,
+                                        linkText = MaterialTheme.colorScheme.primary,
+                                        codeBackground = MaterialTheme.colorScheme.surfaceVariant,
+                                        inlineCodeBackground = MaterialTheme.colorScheme.surfaceVariant,
+                                        dividerColor = MaterialTheme.colorScheme.outlineVariant
+                                    ),
+                                    typography = markdownTypography(
+                                        paragraph = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
+                                        code = MaterialTheme.typography.bodySmall
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Tool Usage status
+                if (hasToolCalls) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        message.toolCalls.forEach { tool ->
+                            ToolUsageItem(tool)
+                        }
+                    }
+                }
+
                 // Compact image thumbnail
                 if (hasImage) {
                     Box(
@@ -148,6 +222,14 @@ fun MessageBubble(
                         )
                     }
                 }
+                
+                if (message.isStreaming && !hasText && !hasThinking && !hasToolCalls) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    )
+                }
             }
         }
     }
@@ -173,5 +255,50 @@ fun MessageBubble(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun ToolUsageItem(tool: ToolCall) {
+    val statusColor = when (tool.status.lowercase()) {
+        "completed", "success" -> MaterialTheme.colorScheme.primary
+        "error", "failed" -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    }
+
+    val icon = when (tool.status.lowercase()) {
+        "completed", "success" -> Icons.Default.CheckCircle
+        "error", "failed" -> Icons.Default.Build // Could be Error icon
+        else -> Icons.Default.Pending
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(vertical = 6.dp, horizontal = 10.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = statusColor
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "Using ${tool.name}...",
+            style = MaterialTheme.typography.labelMedium,
+            color = statusColor
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = tool.status,
+            style = MaterialTheme.typography.labelSmall,
+            color = statusColor.copy(alpha = 0.8f)
+        )
     }
 }

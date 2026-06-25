@@ -412,4 +412,11 @@ interface VelaApiService {
         @Header("X-Session-ID") sessionId: String,
         @Body body: AssistantRequest
     ): AssistantResponse
+
+    @Streaming
+    @POST("assistant/stream")
+    suspend fun assistantStream(
+        @Header("X-Session-ID") sessionId: String,
+        @Body body: AssistantRequest
+    ): ResponseBody
 }

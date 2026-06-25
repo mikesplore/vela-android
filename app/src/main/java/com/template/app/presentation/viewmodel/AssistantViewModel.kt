@@ -60,14 +60,22 @@ class AssistantViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
-            _state.update { it.copy(inputText = "", isLoading = true) }
-            val result = repository.sendMessage(text)
-            if (result is Resource.Error) {
-                appEventManager.showActionErrorSnackbar("Something went wrong")
+        repository.sendMessageStream(text)
+            .onEach { result ->
+                when (result) {
+                    is Resource.Loading -> {
+                        _state.update { it.copy(inputText = "", isLoading = true) }
+                    }
+                    is Resource.Success -> {
+                        _state.update { it.copy(isLoading = false) }
+                    }
+                    is Resource.Error -> {
+                        appEventManager.showActionErrorSnackbar(result.message)
+                        _state.update { it.copy(isLoading = false) }
+                    }
+                }
             }
-            _state.update { it.copy(isLoading = false) }
-        }
+            .launchIn(viewModelScope)
     }
 
     fun confirmAction(confirmed: Boolean) {

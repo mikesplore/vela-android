@@ -51,7 +51,7 @@ import com.template.app.core.data.local.entities.*
         VelaBluetoothDeviceEntity::class,
         AssistantMessageEntity::class
     ],
-    version = 20,
+    version = 21,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

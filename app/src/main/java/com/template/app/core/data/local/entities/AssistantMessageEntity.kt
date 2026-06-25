@@ -4,6 +4,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.template.app.domain.model.AssistantChatMessage
 import com.template.app.domain.model.AssistantConfirmation
+import com.template.app.domain.model.ToolCall
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 
 @Entity(tableName = "assistant_messages")
 data class AssistantMessageEntity(
@@ -15,7 +18,9 @@ data class AssistantMessageEntity(
     val artUrl: String?,
     val isPinRequired: Boolean,
     val pendingActionId: String?,
-    // Confirmation fields (flattened for simplicity or could be serialized)
+    val thinkingText: String?,
+    val toolCallsJson: String?, // Store as JSON string for simplicity
+    // Confirmation fields
     val confTitle: String?,
     val confDescription: String?,
     val confActionType: String?,
@@ -24,7 +29,7 @@ data class AssistantMessageEntity(
     val confExpiresInSeconds: Int?,
     val confRequiresAuth: Boolean?
 ) {
-    fun toDomain(): AssistantChatMessage {
+    fun toDomain(moshi: Moshi): AssistantChatMessage {
         val confirmation = if (confTitle != null) {
             AssistantConfirmation(
                 title = confTitle,
@@ -37,6 +42,11 @@ data class AssistantMessageEntity(
             )
         } else null
 
+        val toolCalls = toolCallsJson?.let {
+            val type = Types.newParameterizedType(List::class.java, ToolCall::class.java)
+            moshi.adapter<List<ToolCall>>(type).fromJson(it)
+        } ?: emptyList()
+
         return AssistantChatMessage(
             id = id,
             text = text,
@@ -46,27 +56,37 @@ data class AssistantMessageEntity(
             artUrl = artUrl,
             confirmation = confirmation,
             isPinRequired = isPinRequired,
-            pendingActionId = pendingActionId
+            pendingActionId = pendingActionId,
+            thinkingText = thinkingText,
+            toolCalls = toolCalls,
+            isStreaming = false
         )
     }
 
     companion object {
-        fun fromDomain(domain: AssistantChatMessage) = AssistantMessageEntity(
-            id = domain.id,
-            text = domain.text,
-            isUser = domain.isUser,
-            timestamp = domain.timestamp,
-            imageBase64 = domain.imageBase64,
-            artUrl = domain.artUrl,
-            isPinRequired = domain.isPinRequired,
-            pendingActionId = domain.pendingActionId,
-            confTitle = domain.confirmation?.title,
-            confDescription = domain.confirmation?.description,
-            confActionType = domain.confirmation?.actionType,
-            confDetails = domain.confirmation?.details,
-            confPromptText = domain.confirmation?.promptText,
-            confExpiresInSeconds = domain.confirmation?.expiresInSeconds,
-            confRequiresAuth = domain.confirmation?.requiresAuth
-        )
+        fun fromDomain(domain: AssistantChatMessage, moshi: Moshi): AssistantMessageEntity {
+            val type = Types.newParameterizedType(List::class.java, ToolCall::class.java)
+            val toolCallsJson = moshi.adapter<List<ToolCall>>(type).toJson(domain.toolCalls)
+
+            return AssistantMessageEntity(
+                id = domain.id,
+                text = domain.text,
+                isUser = domain.isUser,
+                timestamp = domain.timestamp,
+                imageBase64 = domain.imageBase64,
+                artUrl = domain.artUrl,
+                isPinRequired = domain.isPinRequired,
+                pendingActionId = domain.pendingActionId,
+                thinkingText = domain.thinkingText,
+                toolCallsJson = toolCallsJson,
+                confTitle = domain.confirmation?.title,
+                confDescription = domain.confirmation?.description,
+                confActionType = domain.confirmation?.actionType,
+                confDetails = domain.confirmation?.details,
+                confPromptText = domain.confirmation?.promptText,
+                confExpiresInSeconds = domain.confirmation?.expiresInSeconds,
+                confRequiresAuth = domain.confirmation?.requiresAuth
+            )
+        }
     }
 }

@@ -7,5 +7,6 @@ import kotlinx.coroutines.flow.Flow
 interface AssistantRepository {
     fun observeMessages(): Flow<List<AssistantChatMessage>>
     suspend fun sendMessage(message: String): Resource<Unit>
+    fun sendMessageStream(message: String): Flow<Resource<Unit>>
     suspend fun clearChat()
 }
