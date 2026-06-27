@@ -41,8 +41,10 @@ object NetworkModule {
         .add(
             PolymorphicJsonAdapterFactory.of(VelaStreamEvent::class.java, "type")
                 .withSubtype(VelaStreamEvent.Thinking::class.java, "thinking")
-                .withSubtype(VelaStreamEvent.ToolExecution::class.java, "tool_execution")
+                .withSubtype(VelaStreamEvent.ToolExecution::class.java, "tool")
                 .withSubtype(VelaStreamEvent.Content::class.java, "content")
+                .withSubtype(VelaStreamEvent.Gate::class.java, "gate")
+                .withSubtype(VelaStreamEvent.Screenshot::class.java, "screenshot")
                 .withSubtype(VelaStreamEvent.Done::class.java, "done")
         )
         .add(BooleanIntAdapter())
@@ -73,6 +75,7 @@ object NetworkModule {
         .addInterceptor(errorInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(1, TimeUnit.MINUTES)
         .build()
 
     @Provides
@@ -105,8 +108,9 @@ object NetworkModule {
         .addInterceptor(velaInterceptor)
         .addInterceptor(errorInterceptor)
         .addInterceptor(loggingInterceptor)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.MINUTES) // Set to 5 minutes for long-running assistant tasks
+        .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
     @Provides

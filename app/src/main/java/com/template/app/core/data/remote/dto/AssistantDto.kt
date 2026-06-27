@@ -11,6 +11,8 @@ data class AssistantRequest(
 @JsonClass(generateAdapter = true)
 data class AssistantResponse(
     val reply: String,
+    val thinking: String? = null,
+    @Json(name = "tool_calls") val toolCalls: List<ToolCallDto>? = null,
     @Json(name = "image_base64") val imageBase64: String? = null,
     @Json(name = "art_url") val artUrl: String? = null,
     @Json(name = "pending_action_id") val pendingActionId: String? = null,
@@ -18,6 +20,13 @@ data class AssistantResponse(
     @Json(name = "requires_auth") val requiresAuth: Boolean = false,
     @Json(name = "expires_in_seconds") val expiresInSeconds: Int? = null,
     val confirmation: ConfirmationCard? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ToolCallDto(
+    val name: String,
+    val status: String,
+    val result: Map<String, Any>? = null
 )
 
 @JsonClass(generateAdapter = true)

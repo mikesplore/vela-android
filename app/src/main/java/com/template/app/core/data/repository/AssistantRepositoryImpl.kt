@@ -3,9 +3,7 @@ package com.template.app.core.data.repository
 import com.template.app.core.data.local.dao.AssistantDao
 import com.template.app.core.data.local.entities.AssistantMessageEntity
 import com.template.app.core.data.remote.api.VelaApiService
-import com.template.app.core.data.remote.dto.AssistantRequest
-import com.template.app.core.data.remote.dto.AssistantResponse
-import com.template.app.core.data.remote.dto.ConfirmationCard
+import com.template.app.core.data.remote.dto.*
 import com.template.app.core.utils.Resource
 import com.template.app.core.utils.safeApiCall
 import com.template.app.domain.model.*
@@ -105,20 +103,59 @@ class AssistantRepositoryImpl @Inject constructor(
                                             val updatedToolCall = ToolCall(
                                                 name = event.name,
                                                 status = event.status,
-                                                result = event.result?.toString()
+                                                result = event.result?.let { moshi.adapter(Map::class.java).toJson(it) }
                                             )
                                             if (existingIndex >= 0) {
                                                 newToolCalls[existingIndex] = updatedToolCall
                                             } else {
                                                 newToolCalls.add(updatedToolCall)
                                             }
-                                            currentAssistantMsg.copy(toolCalls = newToolCalls)
+
+                                            // Extract art_url or image_base64 from event fields or nested result
+                                            var nextArtUrl = event.artUrl ?: currentAssistantMsg.artUrl
+                                            var nextImageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                            
+                                            event.result?.let { result ->
+                                                result["art_url"]?.toString()?.let { nextArtUrl = it }
+                                                result["image_base64"]?.toString()?.let { nextImageBase64 = it }
+                                            }
+
+                                            currentAssistantMsg.copy(
+                                                toolCalls = newToolCalls,
+                                                artUrl = nextArtUrl,
+                                                imageBase64 = nextImageBase64
+                                            )
                                         }
                                         is VelaStreamEvent.Content -> {
-                                            currentAssistantMsg.copy(text = currentAssistantMsg.text + event.text)
+                                            currentAssistantMsg.copy(
+                                                text = currentAssistantMsg.text + event.text,
+                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl,
+                                                imageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                            )
+                                        }
+                                        is VelaStreamEvent.Gate -> {
+                                            currentAssistantMsg.copy(
+                                                pendingActionId = event.pendingActionId,
+                                                isPinRequired = event.requiresAuth,
+                                                confirmation = event.confirmation?.copy(
+                                                    expiresInSeconds = event.expiresInSeconds ?: event.confirmation.expiresInSeconds,
+                                                    requiresAuth = event.requiresAuth || event.confirmation.requiresAuth
+                                                ),
+                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl,
+                                                imageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                            )
+                                        }
+                                        is VelaStreamEvent.Screenshot -> {
+                                            currentAssistantMsg.copy(
+                                                imageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                            )
                                         }
                                         is VelaStreamEvent.Done -> {
-                                            currentAssistantMsg.copy(isStreaming = false)
+                                            currentAssistantMsg.copy(
+                                                isStreaming = false,
+                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl,
+                                                imageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                            )
                                         }
                                     }
                                     assistantDao.upsertMessage(AssistantMessageEntity.fromDomain(currentAssistantMsg, moshi))
@@ -149,7 +186,17 @@ class AssistantRepositoryImpl @Inject constructor(
             artUrl = artUrl,
             confirmation = confirmation?.toDomain(expiresInSeconds),
             isPinRequired = requiresAuth,
-            pendingActionId = pendingActionId
+            pendingActionId = pendingActionId,
+            thinkingText = thinking,
+            toolCalls = toolCalls?.map { it.toDomain() } ?: emptyList()
+        )
+    }
+
+    private fun ToolCallDto.toDomain(): ToolCall {
+        return ToolCall(
+            name = name,
+            status = status,
+            result = result?.let { moshi.adapter(Map::class.java).toJson(it) }
         )
     }
 
