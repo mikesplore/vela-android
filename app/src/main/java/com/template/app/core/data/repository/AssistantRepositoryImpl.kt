@@ -1,5 +1,7 @@
 package com.template.app.core.data.repository
 
+import android.content.Context
+import android.util.Base64
 import com.template.app.core.data.local.dao.AssistantDao
 import com.template.app.core.data.local.entities.AssistantMessageEntity
 import com.template.app.core.data.remote.api.VelaApiService
@@ -9,8 +11,12 @@ import com.template.app.core.utils.safeApiCall
 import com.template.app.domain.model.*
 import com.template.app.domain.repository.AssistantRepository
 import com.squareup.moshi.Moshi
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,7 +25,8 @@ import javax.inject.Singleton
 class AssistantRepositoryImpl @Inject constructor(
     private val apiService: VelaApiService,
     private val assistantDao: AssistantDao,
-    private val moshi: Moshi
+    private val moshi: Moshi,
+    @ApplicationContext private val context: Context
 ) : AssistantRepository {
 
     private val sessionId = UUID.randomUUID().toString()
@@ -93,6 +100,8 @@ class AssistantRepositoryImpl @Inject constructor(
                                 }
 
                                 if (event != null) {
+                                    var nextImageBase64: String? = null
+                                    
                                     currentAssistantMsg = when (event) {
                                         is VelaStreamEvent.Thinking -> {
                                             currentAssistantMsg.copy(thinkingText = (currentAssistantMsg.thinkingText ?: "") + event.text)
@@ -113,7 +122,7 @@ class AssistantRepositoryImpl @Inject constructor(
 
                                             // Extract art_url or image_base64 from event fields or nested result
                                             var nextArtUrl = event.artUrl ?: currentAssistantMsg.artUrl
-                                            var nextImageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                            nextImageBase64 = event.imageBase64
                                             
                                             event.result?.let { result ->
                                                 result["art_url"]?.toString()?.let { nextArtUrl = it }
@@ -122,18 +131,18 @@ class AssistantRepositoryImpl @Inject constructor(
 
                                             currentAssistantMsg.copy(
                                                 toolCalls = newToolCalls,
-                                                artUrl = nextArtUrl,
-                                                imageBase64 = nextImageBase64
+                                                artUrl = nextArtUrl
                                             )
                                         }
                                         is VelaStreamEvent.Content -> {
+                                            nextImageBase64 = event.imageBase64
                                             currentAssistantMsg.copy(
                                                 text = currentAssistantMsg.text + event.text,
-                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl,
-                                                imageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl
                                             )
                                         }
                                         is VelaStreamEvent.Gate -> {
+                                            nextImageBase64 = event.imageBase64
                                             currentAssistantMsg.copy(
                                                 pendingActionId = event.pendingActionId,
                                                 isPinRequired = event.requiresAuth,
@@ -141,23 +150,27 @@ class AssistantRepositoryImpl @Inject constructor(
                                                     expiresInSeconds = event.expiresInSeconds ?: event.confirmation.expiresInSeconds,
                                                     requiresAuth = event.requiresAuth || event.confirmation.requiresAuth
                                                 ),
-                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl,
-                                                imageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl
                                             )
                                         }
                                         is VelaStreamEvent.Screenshot -> {
-                                            currentAssistantMsg.copy(
-                                                imageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
-                                            )
+                                            nextImageBase64 = event.imageBase64
+                                            currentAssistantMsg
                                         }
                                         is VelaStreamEvent.Done -> {
+                                            nextImageBase64 = event.imageBase64
                                             currentAssistantMsg.copy(
                                                 isStreaming = false,
-                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl,
-                                                imageBase64 = event.imageBase64 ?: currentAssistantMsg.imageBase64
+                                                artUrl = event.artUrl ?: currentAssistantMsg.artUrl
                                             )
                                         }
                                     }
+                                    
+                                    if (nextImageBase64 != null) {
+                                        val path = saveBase64ToFile(nextImageBase64, currentAssistantMsg.id)
+                                        currentAssistantMsg = currentAssistantMsg.copy(imagePath = path)
+                                    }
+                                    
                                     assistantDao.upsertMessage(AssistantMessageEntity.fromDomain(currentAssistantMsg, moshi))
                                 }
                             }
@@ -176,13 +189,19 @@ class AssistantRepositoryImpl @Inject constructor(
 
     override suspend fun clearChat() {
         assistantDao.clearChat()
+        // Also clear saved images
+        withContext(Dispatchers.IO) {
+            val dir = File(context.filesDir, "assistant_images")
+            if (dir.exists()) dir.deleteRecursively()
+        }
     }
 
-    private fun AssistantResponse.toDomain(): AssistantChatMessage {
+    private suspend fun AssistantResponse.toDomain(): AssistantChatMessage {
+        val path = imageBase64?.let { saveBase64ToFile(it, UUID.randomUUID().toString()) }
         return AssistantChatMessage(
             text = reply,
             isUser = false,
-            imageBase64 = imageBase64,
+            imagePath = path,
             artUrl = artUrl,
             confirmation = confirmation?.toDomain(expiresInSeconds),
             isPinRequired = requiresAuth,
@@ -190,6 +209,22 @@ class AssistantRepositoryImpl @Inject constructor(
             thinkingText = thinking,
             toolCalls = toolCalls?.map { it.toDomain() } ?: emptyList()
         )
+    }
+
+    private suspend fun saveBase64ToFile(base64: String, messageId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val raw = if (base64.contains(",")) base64.substringAfter(",") else base64
+            val bytes = Base64.decode(raw, Base64.DEFAULT)
+            
+            val dir = File(context.filesDir, "assistant_images")
+            if (!dir.exists()) dir.mkdirs()
+            
+            val file = File(dir, "img_$messageId.png")
+            FileOutputStream(file).use { it.write(bytes) }
+            file.absolutePath
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun ToolCallDto.toDomain(): ToolCall {

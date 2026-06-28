@@ -1,6 +1,5 @@
 package com.template.app.presentation.ui.screens.chat
 
-import android.util.Base64
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.RepeatMode
@@ -22,9 +21,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -33,12 +36,8 @@ import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.template.app.domain.model.AssistantChatMessage
 import com.template.app.domain.model.ToolCall
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color as ComposeColor
-import androidx.compose.ui.unit.Dp
 
-// Determines if a string is a URL (album art, remote images) vs base64 (screenshots)
+// Determines if a string is a URL (album art, remote images) vs local path
 private fun String.isUrl() = startsWith("http://") || startsWith("https://")
 
 @Composable
@@ -46,15 +45,10 @@ fun MessageBubble(
     message: AssistantChatMessage,
     modifier: Modifier = Modifier
 ) {
-    val imageData = remember(message.imageBase64, message.artUrl) {
+    val imageData = remember(message.imagePath, message.artUrl) {
         when {
             !message.artUrl.isNullOrBlank() -> message.artUrl
-            !message.imageBase64.isNullOrBlank() -> runCatching {
-                val raw = if (message.imageBase64.contains(","))
-                    message.imageBase64.substringAfter(",")
-                else message.imageBase64
-                Base64.decode(raw, Base64.DEFAULT)
-            }.getOrNull()
+            !message.imagePath.isNullOrBlank() -> message.imagePath
             else -> null
         }
     }
@@ -80,7 +74,6 @@ fun MessageBubble(
                 modifier = Modifier.widthIn(max = 300.dp)
             ) {
                 Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                    // User-sent image (e.g. photo attached)
                     if (hasImage) {
                         AsyncImage(
                             model = imageData,
@@ -108,12 +101,10 @@ fun MessageBubble(
                     .fillMaxWidth()
                     .animateContentSize()
             ) {
-                // 1. Thinking block (collapsed by default, tap to expand)
                 if (hasThinking) {
-                    ThinkingBlock(thinkingText = message.thinkingText!!)
+                    ThinkingBlock(thinkingText = message.thinkingText)
                 }
 
-                // 2. Tool usage rows
                 if (hasToolCalls) {
                     Spacer(Modifier.height(4.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -122,7 +113,6 @@ fun MessageBubble(
                     Spacer(Modifier.height(8.dp))
                 }
 
-                // 3. Screenshot image — full width
                 if (hasImage && !isAlbumArt) {
                     AsyncImage(
                         model = imageData,
@@ -140,13 +130,11 @@ fun MessageBubble(
                     if (hasText) Spacer(Modifier.height(10.dp))
                 }
 
-                // 4. Album art — compact row
                 if (isAlbumArt) {
                     AlbumArtRow(url = message.artUrl!!, caption = message.text)
-                    return@Column  // text is embedded in AlbumArtRow
+                    return@Column
                 }
 
-                // 5. Main text / markdown
                 if (hasText) {
                     Markdown(
                         content = message.text,
@@ -166,7 +154,6 @@ fun MessageBubble(
                     )
                 }
 
-                // 6. Loading pulse (streaming, nothing yet)
                 if (message.isStreaming && !hasText && !hasThinking && !hasToolCalls) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
@@ -178,8 +165,6 @@ fun MessageBubble(
         }
     }
 }
-
-// ── Thinking toggle ───────────────────────────────────────────────────────────
 
 @Composable
 private fun ThinkingBlock(thinkingText: String) {
@@ -246,8 +231,6 @@ private fun ThinkingBlock(thinkingText: String) {
     }
 }
 
-// ── Tool usage row ────────────────────────────────────────────────────────────
-
 @Composable
 private fun ToolRow(tool: ToolCall) {
     val isDone = tool.status.lowercase() in listOf("done", "completed", "success")
@@ -270,7 +253,6 @@ private fun ToolRow(tool: ToolCall) {
                     )
             )
         } else {
-            // Animated pulse dot for running
             PulsingDot()
         }
         Spacer(Modifier.width(8.dp))
@@ -312,8 +294,6 @@ private fun PulsingDot() {
     )
 }
 
-// ── Album art row ─────────────────────────────────────────────────────────────
-
 @Composable
 private fun AlbumArtRow(url: String, caption: String) {
     Row(
@@ -344,8 +324,6 @@ private fun AlbumArtRow(url: String, caption: String) {
         }
     }
 }
-
-
 
 private fun Modifier.drawStartBorder(color: ComposeColor, width: Dp): Modifier =
     this.drawBehind {

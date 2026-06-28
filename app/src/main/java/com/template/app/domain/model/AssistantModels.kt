@@ -52,7 +52,7 @@ data class AssistantChatMessage(
     val text: String,
     val isUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
-    val imageBase64: String? = null,
+    val imagePath: String? = null, // Changed from imageBase64
     val artUrl: String? = null,
     val confirmation: AssistantConfirmation? = null,
     val isPinRequired: Boolean = false,
