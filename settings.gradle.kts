@@ -26,5 +26,5 @@ dependencyResolutionManagement {
 //    }
 }
 
-rootProject.name = "AndroidTemplate"
+rootProject.name = "Vela-Android"
 include(":app")

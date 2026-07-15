@@ -22,6 +22,10 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun providePairingRepository(impl: PairingRepositoryImpl): PairingRepository = impl
+
+    @Provides
+    @Singleton
     fun provideDisplayRepository(impl: DisplayRepositoryImpl): DisplayRepository = impl
 
     @Provides

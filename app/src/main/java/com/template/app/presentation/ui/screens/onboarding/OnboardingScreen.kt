@@ -157,6 +157,7 @@ fun OnboardingScreen(
                             onTokenChange = viewModel::setApiToken,
                             onTogglePassword = viewModel::toggleShowPassword,
                             onTestConnection = viewModel::testConnection,
+                            onQrScanned = viewModel::onQrScanned,
                             onSkipOnboarding = {
                                 viewModel.nextPage() // Move to greeting
                             },

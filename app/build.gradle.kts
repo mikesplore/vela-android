@@ -108,6 +108,10 @@ dependencies {
 
     implementation(libs.coil.compose)
 
+    // CameraX and ML Kit
+    implementation(libs.bundles.camerax)
+    implementation(libs.barcode.scanning)
+
     implementation("com.mikepenz:multiplatform-markdown-renderer-android:0.27.0")
     implementation("com.mikepenz:multiplatform-markdown-renderer-m3-android:0.27.0")
     implementation("com.squareup.moshi:moshi-adapters:1.15.2")

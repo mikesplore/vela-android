@@ -43,6 +43,10 @@ coroutines = "1.9.0"
 # Coil (Image Loading)
 coil = "2.7.0"
 
+# CameraX
+camerax = "1.4.1"
+barcode-scanning = "17.3.0"
+
 # Testing
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -97,6 +101,12 @@ okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-i
 moshi-core = { group = "com.squareup.moshi", name = "moshi", version.ref = "moshi" }
 moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin", version.ref = "moshi" }
 moshi-kotlin-codegen = { group = "com.squareup.moshi", name = "moshi-kotlin-codegen", version.ref = "moshi" }
+
+# CameraX
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "barcode-scanning" }
 
 # Room
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -153,6 +163,11 @@ testing = [
     "mockk",
     "turbine",
     "kotlinx-coroutines-test"
+]
+camerax = [
+    "androidx-camera-camera2",
+    "androidx-camera-lifecycle",
+    "androidx-camera-view"
 ]
 
 [plugins]

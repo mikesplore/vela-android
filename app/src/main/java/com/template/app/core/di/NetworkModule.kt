@@ -4,6 +4,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.adapters.PolymorphicJsonAdapterFactory
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import com.template.app.BuildConfig
+import com.template.app.core.data.remote.api.PairingApiService
 import com.template.app.core.data.remote.api.UserApiService
 import com.template.app.core.data.remote.api.VelaApiService
 import com.template.app.core.network.AuthInterceptor
@@ -94,6 +95,11 @@ object NetworkModule {
     @Singleton
     fun provideUserApiService(@UserRetrofit retrofit: Retrofit): UserApiService =
         retrofit.create(UserApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun providePairingApiService(@UserRetrofit retrofit: Retrofit): PairingApiService =
+        retrofit.create(PairingApiService::class.java)
 
     // ── Vela Agent Client ──
 
