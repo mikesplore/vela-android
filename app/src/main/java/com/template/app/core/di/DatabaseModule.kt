@@ -26,7 +26,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "app_database"
         )
-            .fallbackToDestructiveMigration() // Changed to destructive migration since we added entities and bumped version
+            .fallbackToDestructiveMigration(false)
             .build()
 
     @Provides
