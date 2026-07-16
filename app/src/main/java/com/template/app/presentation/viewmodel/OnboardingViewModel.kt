@@ -51,7 +51,7 @@ class OnboardingViewModel @Inject constructor(
 
     sealed interface TestResult {
         object Idle : TestResult
-        object Testing : TestResult
+        data class Testing(val message: String) : TestResult
         data class Success(val username: String) : TestResult
         data class Error(val message: String) : TestResult
     }
@@ -116,15 +116,16 @@ class OnboardingViewModel @Inject constructor(
     fun onQrScanned(scannedValue: String) {
         try {
             val json = JSONObject(scannedValue)
-            val pairUrl = json.optString("pair_url")
             val vpsUrl = json.optString("vps_url")
             val code = json.optString("pairing_code")
             val pin = json.optString("pairing_pin")
 
-            if (pairUrl.isNotEmpty() && code.isNotEmpty() && pin.isNotEmpty()) {
-                if (vpsUrl.isNotEmpty()) {
-                    _baseUrl.value = vpsUrl
-                }
+            if (vpsUrl.isNotEmpty() && code.isNotEmpty() && pin.isNotEmpty()) {
+                _baseUrl.value = vpsUrl
+                _pairingCode.value = code
+                _pairingPin.value = pin
+                
+                val pairUrl = if (vpsUrl.endsWith("/")) "${vpsUrl}pair/complete" else "$vpsUrl/pair/complete"
                 completePairing(pairUrl, code, pin)
                 return
             }
@@ -164,13 +165,15 @@ class OnboardingViewModel @Inject constructor(
     private fun completePairing(pairUrl: String, code: String, pin: String) {
         viewModelScope.launch {
             appEventManager.setLoading(true)
-            _testState.value = TestResult.Testing
+            _testState.value = TestResult.Testing("Pairing with relay...")
             when (val result = pairingRepository.completePairing(pairUrl, code, pin)) {
                 is Resource.Success -> {
                     val data = result.data
 
                     // SAVE relay_secret as apiToken for future requests
                     saveSettingsUseCase(data.relayBaseUrl, data.relaySecret)
+                    
+                    _testState.value = TestResult.Testing("Paired! Waiting for agent to be ready...")
 
                     // Wait for relay_ready to be true before fetching config
                     val statusUrl = if (pairUrl.endsWith("/pair/complete")) {
@@ -194,6 +197,7 @@ class OnboardingViewModel @Inject constructor(
                     }
 
                     if (isRelayReady) {
+                        _testState.value = TestResult.Testing("Agent ready. Finalizing setup...")
                         // After saving and waiting, verify config to get username
                         when (val configResult = configRepository.getConfig()) {
                             is Resource.Success -> {
@@ -207,7 +211,7 @@ class OnboardingViewModel @Inject constructor(
                             else -> {}
                         }
                     } else {
-                        val errorMsg = "Relay is not ready yet. Please try again in a few seconds."
+                        val errorMsg = "Relay is not ready yet. Please ensure your agent is running."
                         _testState.value = TestResult.Error(errorMsg)
                         appEventManager.showActionErrorSnackbar(errorMsg)
                     }

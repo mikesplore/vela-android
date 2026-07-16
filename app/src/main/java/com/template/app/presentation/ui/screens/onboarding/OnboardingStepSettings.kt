@@ -319,7 +319,7 @@ private fun ManualModeContent(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(10.dp))
-                        Text("Connecting…", style = MaterialTheme.typography.bodySmall)
+                        Text(state.message, style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 is OnboardingViewModel.TestResult.Error -> {

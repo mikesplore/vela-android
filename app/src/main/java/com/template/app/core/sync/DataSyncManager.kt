@@ -76,8 +76,7 @@ class DataSyncManager @Inject constructor(
                     launch { schedulerRepository.getScheduledTasks() },
                     launch { powerRepository.getPowerProfile() },
                     launch { clipboardRepository.readClipboard() },
-                    launch { monitorRepository.getUptime()},
-                    launch { monitorRepository.getMonitorSnapshot() },
+                    launch { monitorRepository.getUptime()}
 
                 )
                 tasks.joinAll()

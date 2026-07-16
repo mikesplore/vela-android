@@ -171,6 +171,7 @@ fun OnboardingScreen(
                         3 -> OnboardingStepGreeting(
                             username = "${username?.replaceFirstChar { it.uppercase() }}",
                             onFinish = {
+                                viewModel.finishOnboarding()
                                 onOnboardingComplete()
                             }
                         )
