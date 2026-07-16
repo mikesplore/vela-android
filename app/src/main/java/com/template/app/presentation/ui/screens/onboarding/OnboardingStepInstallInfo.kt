@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.VpnKey
@@ -41,7 +42,7 @@ fun OnboardingStepInstallInfo(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Top
     ) {
         Text(
-            text = "Setup the Vela Client Engine",
+            text = "Setup Instructions",
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.5).sp
@@ -51,7 +52,7 @@ fun OnboardingStepInstallInfo(modifier: Modifier = Modifier) {
         )
 
         Text(
-            text = "To establish a secure telemetry line, ensure that your target host machine is actively running the underlying daemon background layer.",
+            text = "Follow these steps to prepare your environment:",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 24.dp)
@@ -60,21 +61,27 @@ fun OnboardingStepInstallInfo(modifier: Modifier = Modifier) {
         val steps = listOf(
             StepItem(
                 num = "1",
-                icon = Icons.Default.Terminal,
-                title = "Deploy Host Service",
-                desc = "Run your automation script hooks or configure the background listener service execution layer on your environment."
+                icon = Icons.Default.Dns,
+                title = "Relay",
+                desc = "Ensure the relay is up and running."
             ),
             StepItem(
                 num = "2",
-                icon = Icons.Default.Dns,
-                title = "Verify Port Binding",
-                desc = "Ensure the active network port interface is accessible through your specified network firewall routing parameters."
+                icon = Icons.Default.Terminal,
+                title = "Vela Agent",
+                desc = "Run the vela agent and set it up."
             ),
             StepItem(
                 num = "3",
                 icon = Icons.Default.VpnKey,
-                title = "Retrieve Node Token Credentials",
-                desc = "Note down your configuration access handshake credentials securely to complete the authorization pairing sequence."
+                title = "Pairing",
+                desc = "Pair it with this phone."
+            ),
+            StepItem(
+                num = "4",
+                icon = Icons.Default.CheckCircle,
+                title = "Complete",
+                desc = "Done. You're all set!"
             )
         )
 

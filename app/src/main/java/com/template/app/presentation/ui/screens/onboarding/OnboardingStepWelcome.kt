@@ -110,7 +110,7 @@ fun OnboardingStepWelcome(modifier: Modifier = Modifier) {
         )
 
         Text(
-            text = "Vela connects seamlessly to your computer to stream resource logs, run local commands, and orchestrate hardware parameters straight from your palm.",
+            text = "Vela helps you control and manage your PC remotely via a relay.",
             style = MaterialTheme.typography.bodyLarge.copy(
                 lineHeight = 24.sp,
                 textAlign = TextAlign.Center
