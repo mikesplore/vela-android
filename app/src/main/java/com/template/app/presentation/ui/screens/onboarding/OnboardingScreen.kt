@@ -46,7 +46,8 @@ fun OnboardingScreen(
 ) {
     val currentPage by viewModel.currentPage.collectAsStateWithLifecycle()
     val baseUrl by viewModel.baseUrl.collectAsStateWithLifecycle()
-    val apiToken by viewModel.apiToken.collectAsStateWithLifecycle()
+    val pairingCode by viewModel.pairingCode.collectAsStateWithLifecycle()
+    val pairingPin by viewModel.pairingPin.collectAsStateWithLifecycle()
     val showPassword by viewModel.showPassword.collectAsStateWithLifecycle()
     val testState by viewModel.testState.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
@@ -150,13 +151,15 @@ fun OnboardingScreen(
                         1 -> OnboardingStepInstallInfo()
                         2 -> OnboardingStepSettings(
                             baseUrl = baseUrl,
-                            apiToken = apiToken,
+                            pairingCode = pairingCode,
+                            pairingPin = pairingPin,
                             showPassword = showPassword,
                             testState = testState,
                             onUrlChange = viewModel::setBaseUrl,
-                            onTokenChange = viewModel::setApiToken,
+                            onCodeChange = viewModel::setPairingCode,
+                            onPinChange = viewModel::setPairingPin,
                             onTogglePassword = viewModel::toggleShowPassword,
-                            onTestConnection = viewModel::testConnection,
+                            onPerformPairing = viewModel::manualPairing,
                             onQrScanned = viewModel::onQrScanned,
                             onSkipOnboarding = {
                                 viewModel.nextPage() // Move to greeting

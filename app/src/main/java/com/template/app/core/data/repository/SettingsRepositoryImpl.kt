@@ -6,8 +6,10 @@ import com.template.app.core.data.local.dao.SettingsDao
 import com.template.app.core.data.local.entities.SettingsEntity
 import com.template.app.domain.model.ConnectionSettings
 import com.template.app.domain.repository.SettingsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -30,7 +32,7 @@ class SettingsRepositoryImpl @Inject constructor(
         settingsDao.upsert(SettingsEntity.fromDomain(sanitized))
     }
 
-    override suspend fun clearSettings() {
+    override suspend fun clearSettings() = withContext(Dispatchers.IO) {
         database.clearAllTables()
         userPreferencesDataStore.clearAll()
     }

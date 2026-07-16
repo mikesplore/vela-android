@@ -5,9 +5,10 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -17,10 +18,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -33,29 +32,33 @@ import androidx.core.content.ContextCompat
 import com.template.app.presentation.ui.components.QrScannerView
 import com.template.app.presentation.viewmodel.OnboardingViewModel
 
+private enum class PairMode { SCAN, MANUAL }
+
 @Composable
 fun OnboardingStepSettings(
     baseUrl: String,
-    apiToken: String,
+    pairingCode: String,
+    pairingPin: String,
     showPassword: Boolean,
     testState: OnboardingViewModel.TestResult,
     onUrlChange: (String) -> Unit,
-    onTokenChange: (String) -> Unit,
+    onCodeChange: (String) -> Unit,
+    onPinChange: (String) -> Unit,
     onTogglePassword: () -> Unit,
-    onTestConnection: () -> Unit,
+    onPerformPairing: () -> Unit,
     onSkipOnboarding: () -> Unit,
     onContinue: () -> Unit,
     onQrScanned: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var mode by remember { mutableStateOf(PairMode.SCAN) }
     var showScanner by remember { mutableStateOf(false) }
+
     var hasCameraPermission by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED
         )
     }
 
@@ -63,186 +66,335 @@ fun OnboardingStepSettings(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { granted ->
             hasCameraPermission = granted
-            if (granted) {
-                showScanner = true
-            }
+            if (granted) showScanner = true
         }
     )
 
     LaunchedEffect(testState) {
-        if (testState is OnboardingViewModel.TestResult.Success) {
-            onContinue()
-        }
+        if (testState is OnboardingViewModel.TestResult.Success) onContinue()
     }
 
     if (showScanner && hasCameraPermission) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            QrScannerView(
-                onCodeScanned = { code ->
-                    showScanner = false
-                    onQrScanned(code)
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            IconButton(
-                onClick = { showScanner = false },
-                modifier = Modifier
-                    .padding(16.dp)
-                    .align(Alignment.TopEnd)
-                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
-            ) {
-                Icon(Icons.Default.Close, contentDescription = "Close Scanner", tint = Color.White)
+        ScannerScreen(
+            onCodeScanned = { code ->
+                showScanner = false
+                onQrScanned(code)
+            },
+            onClose = { showScanner = false }
+        )
+        return
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = "Pair Device",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        // Segmented switch — makes the two modes mutually exclusive
+        ModeSwitch(
+            mode = mode,
+            onModeChange = { mode = it }
+        )
+
+        Spacer(Modifier.height(32.dp))
+
+        AnimatedContent(
+            targetState = mode,
+            transitionSpec = {
+                (fadeIn() + slideInHorizontally { if (targetState == PairMode.MANUAL) it / 4 else -it / 4 })
+                    .togetherWith(fadeOut())
+            },
+            label = "pair_mode"
+        ) { current ->
+            when (current) {
+                PairMode.SCAN -> ScanModeContent(
+                    hasCameraPermission = hasCameraPermission,
+                    onScanClick = {
+                        if (hasCameraPermission) showScanner = true
+                        else launcher.launch(Manifest.permission.CAMERA)
+                    }
+                )
+                PairMode.MANUAL -> ManualModeContent(
+                    baseUrl = baseUrl,
+                    pairingCode = pairingCode,
+                    pairingPin = pairingPin,
+                    showPassword = showPassword,
+                    testState = testState,
+                    onUrlChange = onUrlChange,
+                    onCodeChange = onCodeChange,
+                    onPinChange = onPinChange,
+                    onTogglePassword = onTogglePassword,
+                    onPerformPairing = onPerformPairing
+                )
             }
         }
-    } else {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+
+        Spacer(Modifier.height(48.dp))
+    }
+}
+
+@Composable
+private fun ModeSwitch(mode: PairMode, onModeChange: (PairMode) -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(modifier = Modifier.padding(4.dp)) {
+            SegmentButton(
+                label = "Scan QR",
+                selected = mode == PairMode.SCAN,
+                modifier = Modifier.weight(1f),
+                onClick = { onModeChange(PairMode.SCAN) }
+            )
+            SegmentButton(
+                label = "Manual",
+                selected = mode == PairMode.MANUAL,
+                modifier = Modifier.weight(1f),
+                onClick = { onModeChange(PairMode.MANUAL) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SegmentButton(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val bg = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent
+    val fg = if (selected) MaterialTheme.colorScheme.onSurface
+    else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = bg,
+        shadowElevation = if (selected) 1.dp else 0.dp,
+        modifier = modifier.height(40.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Text(label, fontWeight = FontWeight.SemiBold, color = fg, fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun ScanModeContent(
+    hasCameraPermission: Boolean,
+    onScanClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Scan the QR code from your Vela dashboard to link this device instantly.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 32.dp)
+        )
+
+        Surface(
+            onClick = onScanClick,
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp)
         ) {
-            Text(
-                text = "Link Device Terminal",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                ),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-            )
-
-            Text(
-                text = "Input your relay host coordinates manually or scan the pairing QR code from your Vela dashboard.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp)
-            )
-
-            // QR Scan Button
-            Button(
-                onClick = {
-                    if (hasCameraPermission) {
-                        showScanner = true
-                    } else {
-                        launcher.launch(Manifest.permission.CAMERA)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(bottom = 24.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Icon(
+                    Icons.Default.QrCodeScanner,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(Icons.Default.QrCodeScanner, contentDescription = null)
-                    Text("Scan Pairing QR Code", fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HorizontalDivider(modifier = Modifier.weight(1f))
+                Spacer(Modifier.height(12.dp))
                 Text(
-                    "OR MANUAL INPUT",
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    if (hasCameraPermission) "Tap to scan" else "Tap to allow camera & scan",
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                HorizontalDivider(modifier = Modifier.weight(1f))
             }
+        }
+    }
+}
 
-            // Web Address / Host URL Field
+@Composable
+private fun ManualModeContent(
+    baseUrl: String,
+    pairingCode: String,
+    pairingPin: String,
+    showPassword: Boolean,
+    testState: OnboardingViewModel.TestResult,
+    onUrlChange: (String) -> Unit,
+    onCodeChange: (String) -> Unit,
+    onPinChange: (String) -> Unit,
+    onTogglePassword: () -> Unit,
+    onPerformPairing: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Enter your relay details manually.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = baseUrl,
+            onValueChange = onUrlChange,
+            label = { Text("Relay Base URL") },
+            placeholder = { Text("https://your-vela-instance.com") },
+            leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null) },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             OutlinedTextField(
-                value = baseUrl,
-                onValueChange = onUrlChange,
-                label = { Text("Relay Base URL") },
-                placeholder = { Text("https://api.mikesplore.tech") },
-                leadingIcon = { Icon(Icons.Default.Dns, contentDescription = "Host Icon") },
+                value = pairingCode,
+                onValueChange = onCodeChange,
+                label = { Text("Code") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(14.dp),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Next
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-                    .testTag("onboarding_host_input")
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next)
             )
 
-            // Security API Token field
             OutlinedTextField(
-                value = apiToken,
-                onValueChange = onTokenChange,
-                label = { Text("Relay Secret Key") },
-                placeholder = { Text("Enter terminal authentication key") },
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock Icon") },
+                value = pairingPin,
+                onValueChange = onPinChange,
+                label = { Text("PIN") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(14.dp),
+                singleLine = true,
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = onTogglePassword) {
                         Icon(
-                            imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = "Toggle credential visibility"
+                            imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = "Toggle password"
                         )
                     }
                 },
-                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp)
-                    .testTag("onboarding_token_input")
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done)
             )
+        }
 
-            // Row of Verification action buttons
-            Button(
-                onClick = onTestConnection,
-                enabled = testState !is OnboardingViewModel.TestResult.Testing,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .testTag("btn_test_connection")
-            ) {
-                if (testState is OnboardingViewModel.TestResult.Testing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Connect & Verify", fontWeight = FontWeight.Bold)
+        // Inline status feedback, only rendered here (not competing with scan UI)
+        AnimatedContent(targetState = testState, label = "manual_status") { state ->
+            when (state) {
+                is OnboardingViewModel.TestResult.Testing -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Connecting…", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
+                is OnboardingViewModel.TestResult.Error -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            state.message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                else -> Spacer(Modifier.height(0.dp))
             }
+        }
 
-            if (testState is OnboardingViewModel.TestResult.Error) {
-                Text(
-                    text = testState.message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+        Button(
+            onClick = onPerformPairing,
+            enabled = testState !is OnboardingViewModel.TestResult.Testing,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Pair", fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun ScannerScreen(
+    onCodeScanned: (String) -> Unit,
+    onClose: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        QrScannerView(onCodeScanned = onCodeScanned, modifier = Modifier.fillMaxSize())
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(260.dp)
+                .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+        )
+
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .padding(top = 48.dp, end = 24.dp)
+                .align(Alignment.TopEnd)
+                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Close Scanner", tint = Color.White)
+        }
+
+        Surface(
+            color = Color.Black.copy(alpha = 0.7f),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 60.dp)
+        ) {
+            Text(
+                text = "Center the QR code in the frame",
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }

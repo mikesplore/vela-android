@@ -6,7 +6,6 @@ import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.repository.ConfigRepository
 import com.template.app.domain.repository.PairingRepository
-import com.template.app.domain.repository.SettingsRepository
 import com.template.app.domain.usecase.CompleteOnboardingUseCase
 import com.template.app.domain.usecase.GetSettingsUseCase
 import com.template.app.domain.usecase.SaveSettingsUseCase
@@ -17,6 +16,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import javax.inject.Inject
 import androidx.core.net.toUri
+import kotlinx.coroutines.delay
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
@@ -25,7 +25,6 @@ class OnboardingViewModel @Inject constructor(
     private val completeOnboardingUseCase: CompleteOnboardingUseCase,
     private val configRepository: ConfigRepository,
     private val pairingRepository: PairingRepository,
-    private val settingsRepository: SettingsRepository,
     private val appEventManager: AppEventManager,
 ) : ViewModel() {
 
@@ -59,6 +58,10 @@ class OnboardingViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            // CRITICAL: Clear credentials on initialization of Onboarding.
+            // This ensures no stale relay secrets or URLs interfere with new pairing attempts.
+            saveSettingsUseCase("", "")
+
             getSettingsUseCase().collect { settings ->
                 _baseUrl.value = settings.baseUrl
             }
@@ -67,16 +70,28 @@ class OnboardingViewModel @Inject constructor(
 
     fun nextPage() {
         if (_currentPage.value < 3) {
-            _currentPage.value++
-            _testState.value = TestResult.Idle
+            val next = _currentPage.value + 1
+            _currentPage.value = next
+            // Only reset inputs if we are moving between early steps.
+            // When moving to step 3 (Greeting), we must preserve the username.
+            if (next < 3) {
+                resetPairingInputs()
+            }
         }
     }
 
     fun prevPage() {
         if (_currentPage.value > 0) {
             _currentPage.value--
-            _testState.value = TestResult.Idle
+            resetPairingInputs()
         }
+    }
+
+    private fun resetPairingInputs() {
+        _testState.value = TestResult.Idle
+        _pairingCode.value = ""
+        _pairingPin.value = ""
+        _username.value = null
     }
 
     fun setBaseUrl(url: String) {
@@ -110,8 +125,6 @@ class OnboardingViewModel @Inject constructor(
                 if (vpsUrl.isNotEmpty()) {
                     _baseUrl.value = vpsUrl
                 }
-                _pairingCode.value = code
-                _pairingPin.value = pin
                 completePairing(pairUrl, code, pin)
                 return
             }
@@ -126,8 +139,6 @@ class OnboardingViewModel @Inject constructor(
                 val pin = uri.getQueryParameter("pin")
                 if (code != null && pin != null) {
                     val fallbackPairUrl = "https://vela.mikesplore.tech/pair/complete"
-                    _pairingCode.value = code
-                    _pairingPin.value = pin
                     completePairing(fallbackPairUrl, code, pin)
                 }
             }
@@ -157,22 +168,48 @@ class OnboardingViewModel @Inject constructor(
             when (val result = pairingRepository.completePairing(pairUrl, code, pin)) {
                 is Resource.Success -> {
                     val data = result.data
-                    
+
                     // SAVE relay_secret as apiToken for future requests
                     saveSettingsUseCase(data.relayBaseUrl, data.relaySecret)
-                    
-                    // After saving, verify config to get username
-                    when (val configResult = configRepository.getConfig()) {
-                        is Resource.Success -> {
-                            _username.value = configResult.data.username
-                            _testState.value = TestResult.Success(configResult.data.username)
-                            completeOnboarding()
+
+                    // Wait for relay_ready to be true before fetching config
+                    val statusUrl = if (pairUrl.endsWith("/pair/complete")) {
+                        pairUrl.replace("/pair/complete", "/agents/register/status")
+                    } else if (pairUrl.contains("/pair/complete")) {
+                        pairUrl.replace("/pair/complete", "/agents/register/status")
+                    } else {
+                        // Fallback: try to construct it from the base URL if we can't find /pair/complete
+                        pairUrl.substringBeforeLast("/") + "/status"
+                    }
+
+                    var isRelayReady = false
+                    // Polling for relay_ready for up to 15 seconds (10 attempts * 1.5s)
+                    for (i in 1..10) {
+                        val statusResult = pairingRepository.getRegistrationStatus(statusUrl, data.agentId)
+                        if (statusResult is Resource.Success && statusResult.data.relayReady) {
+                            isRelayReady = true
+                            break
                         }
-                        is Resource.Error -> {
-                            _testState.value = TestResult.Error(configResult.message)
-                            appEventManager.showActionErrorSnackbar(configResult.message)
+                        delay(1500)
+                    }
+
+                    if (isRelayReady) {
+                        // After saving and waiting, verify config to get username
+                        when (val configResult = configRepository.getConfig()) {
+                            is Resource.Success -> {
+                                _username.value = configResult.data.username
+                                _testState.value = TestResult.Success(configResult.data.username)
+                            }
+                            is Resource.Error -> {
+                                _testState.value = TestResult.Error(configResult.message)
+                                appEventManager.showActionErrorSnackbar(configResult.message)
+                            }
+                            else -> {}
                         }
-                        else -> {}
+                    } else {
+                        val errorMsg = "Relay is not ready yet. Please try again in a few seconds."
+                        _testState.value = TestResult.Error(errorMsg)
+                        appEventManager.showActionErrorSnackbar(errorMsg)
                     }
                 }
                 is Resource.Error -> {
@@ -185,7 +222,7 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    fun completeOnboarding() {
+    fun finishOnboarding() {
         viewModelScope.launch {
             appEventManager.setLoading(true)
             completeOnboardingUseCase()

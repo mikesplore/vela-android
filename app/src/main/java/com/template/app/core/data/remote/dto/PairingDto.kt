@@ -19,3 +19,10 @@ data class PairingResponse(
     @Json(name = "relay_secret") val relaySecret: String,
     @Json(name = "relay_secret_shared") val relaySecretShared: Boolean
 )
+
+@JsonClass(generateAdapter = true)
+data class RegistrationStatusResponse(
+    @Json(name = "api_version") val apiVersion: String,
+    val status: String,
+    @Json(name = "relay_ready") val relayReady: Boolean
+)
