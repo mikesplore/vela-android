@@ -108,9 +108,7 @@ fun MainScreen(
             startDestination = Routes.DASHBOARD,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Routes.DASHBOARD) {
-                DashboardScreen(onAddDevice = onAddDevice)
-            }
+            composable(Routes.DASHBOARD) { DashboardScreen() }
             composable(Routes.DISPLAY) { DisplayScreen() }
             composable(Routes.MONITOR) { MonitorScreen() }
             composable(Routes.MEDIA) { MediaScreen() }

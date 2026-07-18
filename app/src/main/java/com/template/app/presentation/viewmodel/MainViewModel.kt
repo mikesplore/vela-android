@@ -6,11 +6,14 @@ import com.template.app.core.data.local.LegacyConnectionRestorer
 import com.template.app.core.sync.DataSyncManager
 import com.template.app.core.utils.AppEventManager
 import com.template.app.domain.model.AppThemeMode
+import com.template.app.domain.model.PairedDevice
 import com.template.app.domain.model.VelaHealth
 import com.template.app.domain.repository.HealthRepository
 import com.template.app.domain.usecase.GetSettingsUseCase
 import com.template.app.domain.usecase.HasDevicesUseCase
 import com.template.app.domain.usecase.ObserveActiveDeviceUseCase
+import com.template.app.domain.usecase.ObserveDevicesUseCase
+import com.template.app.domain.usecase.SwitchDeviceUseCase
 import com.template.app.presentation.ui.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +30,8 @@ class MainViewModel @Inject constructor(
     private val getSettingsUseCase: GetSettingsUseCase,
     private val hasDevicesUseCase: HasDevicesUseCase,
     private val observeActiveDeviceUseCase: ObserveActiveDeviceUseCase,
+    private val observeDevicesUseCase: ObserveDevicesUseCase,
+    private val switchDeviceUseCase: SwitchDeviceUseCase,
     private val legacyConnectionRestorer: LegacyConnectionRestorer,
     private val dataSyncManager: DataSyncManager,
     private val healthRepository: HealthRepository,
@@ -41,6 +46,12 @@ class MainViewModel @Inject constructor(
 
     val health: StateFlow<VelaHealth?> = healthRepository.observeHealth()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val activeDevice: StateFlow<PairedDevice?> = observeActiveDeviceUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val pairedDevices: StateFlow<List<PairedDevice>> = observeDevicesUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         viewModelScope.launch {
@@ -67,13 +78,17 @@ class MainViewModel @Inject constructor(
                         dataSyncManager.startSync()
                     } else {
                         dataSyncManager.stopSync()
-                        if (_startDestination.value == Routes.MAIN) {
-                            // All devices removed while on main — keep destination;
-                            // navigation is handled by Settings/remove callbacks.
-                        }
                     }
                 }
             }
+        }
+    }
+
+    fun switchDevice(id: Long) {
+        viewModelScope.launch {
+            runCatching { switchDeviceUseCase(id) }
+                .onSuccess { appEventManager.showActionSuccessSnackbar("Switched device") }
+                .onFailure { appEventManager.showActionErrorSnackbar(it.message ?: "Switch failed") }
         }
     }
 
