@@ -7,6 +7,7 @@ import com.template.app.domain.repository.ClipboardRepository
 import com.template.app.domain.repository.DisplayRepository
 import com.template.app.domain.repository.FilesystemRepository
 import com.template.app.domain.repository.HealthRepository
+import com.template.app.domain.repository.MaintenanceRepository
 import com.template.app.domain.repository.MediaRepository
 import com.template.app.domain.repository.MonitorRepository
 import com.template.app.domain.repository.NetworkRepository
@@ -35,6 +36,7 @@ class DataSyncManager @Inject constructor(
     private val schedulerRepository: SchedulesRepository,
     private val powerRepository: PowerRepository,
     private val clipboardRepository: ClipboardRepository,
+    private val maintenanceRepository: MaintenanceRepository
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var syncJob: Job? = null
@@ -89,7 +91,6 @@ class DataSyncManager @Inject constructor(
                     launch { displayRepository.getBrightness() },
                     launch { networkRepository.getNetworkInfo() },
                     launch { fileRepository.getDiskUsage() },
-                    launch { processRepository.getProcesses() },
                     launch { processRepository.getActiveWindow() },
                     launch { displayRepository.getResolution() },
                     launch { audioRepository.getAudioDevices() },
@@ -97,7 +98,11 @@ class DataSyncManager @Inject constructor(
                     launch { schedulerRepository.getScheduledTasks() },
                     launch { powerRepository.getPowerProfile() },
                     launch { clipboardRepository.readClipboard() },
-                    launch { monitorRepository.getUptime() }
+                    launch { monitorRepository.getUptime() },
+                    launch { monitorRepository.getDiskIo() },
+                    launch { monitorRepository.getNetworkIo() },
+                    launch { monitorRepository.getMonitorProcesses() },
+                    launch { maintenanceRepository.getServices() }
                 )
                 tasks.joinAll()
             }

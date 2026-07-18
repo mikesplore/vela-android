@@ -125,6 +125,49 @@ class MonitorRepositoryImpl @Inject constructor(
         domain
     }
 
+    override suspend fun getDiskIo(): Resource<List<VelaDiskIo>> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
+        val domains = apiService.getMonitorDiskIo().map {
+            VelaDiskIo(
+                device = it.device ?: "unknown",
+                readBytesPerSec = it.readBytesPerSec ?: 0.0,
+                writeBytesPerSec = it.writeBytesPerSec ?: 0.0
+            )
+        }
+        velaDao.replaceDiskIo(connectionId, domains.map { VelaDiskIoEntity.fromDomain(connectionId, it) })
+        domains
+    }
+
+    override suspend fun getNetworkIo(): Resource<List<VelaNetworkIo>> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
+        val domains = apiService.getMonitorNetworkIo().map {
+            VelaNetworkIo(
+                interfaceName = it.interfaceName ?: "unknown",
+                bytesSentPerSec = it.bytesSentPerSec ?: 0.0,
+                bytesRecvPerSec = it.bytesRecvPerSec ?: 0.0
+            )
+        }
+        velaDao.replaceNetworkIo(connectionId, domains.map { VelaNetworkIoEntity.fromDomain(connectionId, it) })
+        domains
+    }
+
+    override suspend fun getMonitorProcesses(): Resource<Pair<List<VelaProcess>, List<VelaProcess>>> =
+        safeApiCall {
+            val connectionId = activeConnection.requireActiveId()
+            val res = apiService.getMonitorProcesses()
+            val cpuDomains = res.cpuProcesses().map { it.toDomain() }
+            val memDomains = res.memoryProcesses().map { it.toDomain() }
+            velaDao.replaceCpuProcesses(
+                connectionId,
+                cpuDomains.map { VelaProcessEntity.fromDomain(connectionId, it, isTopByMemory = false) }
+            )
+            velaDao.replaceMemoryProcesses(
+                connectionId,
+                memDomains.map { VelaProcessEntity.fromDomain(connectionId, it, isTopByMemory = true) }
+            )
+            cpuDomains to memDomains
+        }
+
     override suspend fun getMonitorSnapshot(): Resource<VelaMonitorSnapshot> = safeApiCall {
         val connectionId = activeConnection.requireActiveId()
         val res = apiService.getMonitorSnapshot()
@@ -178,8 +221,8 @@ class MonitorRepositoryImpl @Inject constructor(
         val batteryDomain = res.battery?.let {
             VelaBatteryStatus(it.percent ?: 0.0, it.pluggedIn ?: false, it.secsLeft)
         }
-        val cpuProcDomains = res.processes?.topByCpu?.map { it.toDomain() } ?: emptyList()
-        val memProcDomains = res.processes?.topByMemory?.map { it.toDomain() } ?: emptyList()
+        val cpuProcDomains = res.processes?.cpuProcesses()?.map { it.toDomain() } ?: emptyList()
+        val memProcDomains = res.processes?.memoryProcesses()?.map { it.toDomain() } ?: emptyList()
 
         // Sync to Room
         velaDao.upsertCpuUsage(VelaCpuUsageEntity.fromDomain(connectionId, cpuDomain))
@@ -227,6 +270,6 @@ class MonitorRepositoryImpl @Inject constructor(
         cpu = cpu ?: 0.0,
         mem = mem ?: 0.0,
         username = username,
-        memoryRss = memRss
+        memoryRss = memoryRssBytes()
     )
 }

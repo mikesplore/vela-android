@@ -409,14 +409,26 @@ data class ProcessItem(
     val username: String? = null,
     @Json(name = "cpu_percent") val cpu: Double? = null,
     @Json(name = "memory_percent") val mem: Double? = null,
-    @Json(name = "memory_rss") val memRss: Long? = null
-)
+    @Json(name = "memory_rss") val memRss: Long? = null,
+    /** Prefer when API returns megabytes instead of RSS bytes. */
+    @Json(name = "memory_mb") val memoryMb: Double? = null
+) {
+    fun memoryRssBytes(): Long? =
+        memRss ?: memoryMb?.let { (it * 1024.0 * 1024.0).toLong() }
+}
 
 @JsonClass(generateAdapter = true)
 data class ProcessesResponse(
+    /** Current monitor API: GET /monitor/processes */
+    @Json(name = "by_cpu") val byCpu: List<ProcessItem>? = null,
+    @Json(name = "by_memory") val byMemory: List<ProcessItem>? = null,
+    /** Legacy / snapshot field names */
     @Json(name = "top_by_cpu") val topByCpu: List<ProcessItem>? = null,
     @Json(name = "top_by_memory") val topByMemory: List<ProcessItem>? = null
-)
+) {
+    fun cpuProcesses(): List<ProcessItem> = byCpu ?: topByCpu ?: emptyList()
+    fun memoryProcesses(): List<ProcessItem> = byMemory ?: topByMemory ?: emptyList()
+}
 
 @JsonClass(generateAdapter = true)
 data class ProcessLaunchRequest(
@@ -585,6 +597,7 @@ data class SshSessionsResponse(
 @JsonClass(generateAdapter = true)
 data class SchedulerCreateRequest(
     val command: String,
+    val args: List<String> = emptyList(),
     @Json(name = "run_at") val runAt: String,
     val recurring: String? = null
 )
@@ -596,13 +609,18 @@ data class ScheduledTask(
     @Json(name = "run_at") val runAt: String? = null,
     val command: String? = null,
     val args: List<String>? = null,
+    val trigger: String? = null,
     val recurring: String? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class SchedulerListResponse(
-    val jobs: List<ScheduledTask>? = null
-)
+    val jobs: List<ScheduledTask>? = null,
+    /** Some agents may return `tasks` instead of `jobs`. */
+    val tasks: List<ScheduledTask>? = null
+) {
+    fun jobList(): List<ScheduledTask> = jobs ?: tasks ?: emptyList()
+}
 
 // ── Maintenance ──
 
@@ -614,30 +632,29 @@ data class LogsResponse(
 
 @JsonClass(generateAdapter = true)
 data class PackageUpdate(
-    val name: String? = null,
-    val version: String? = null
+    @Json(name = "package") val packageName: String? = null,
+    val current: String? = null,
+    val available: String? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class UpdatesResponse(
-    @Json(name = "updates_available") val updatesAvailable: Boolean? = null,
-    val packages: List<PackageUpdate>? = null
+    val manager: String? = null,
+    val updates: List<PackageUpdate>? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class ServiceItem(
     val name: String? = null,
-    val active: Boolean? = null
+    val load: String? = null,
+    val active: String? = null,
+    val sub: String? = null,
+    val description: String? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class ServicesResponse(
     val services: List<ServiceItem>? = null
-)
-
-@JsonClass(generateAdapter = true)
-data class ServiceActionRequest(
-    val name: String
 )
 
 @JsonClass(generateAdapter = true)

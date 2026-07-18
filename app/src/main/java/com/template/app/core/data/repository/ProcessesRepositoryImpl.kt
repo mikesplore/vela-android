@@ -68,7 +68,8 @@ class ProcessesRepositoryImpl @Inject constructor(
         try {
             val adapter = moshi.adapter(ProcessesResponse::class.java)
             val obj = adapter.fromJson(jsonStr)
-            if (obj?.topByCpu != null) return obj.topByCpu.map { it.toDomain() }
+            val cpu = obj?.cpuProcesses().orEmpty()
+            if (cpu.isNotEmpty()) return cpu.map { it.toDomain() }
         } catch (e: Exception) {
         }
 
@@ -100,7 +101,7 @@ class ProcessesRepositoryImpl @Inject constructor(
         cpu = cpu ?: 0.0,
         mem = mem ?: 0.0,
         username = username,
-        memoryRss = memRss
+        memoryRss = memoryRssBytes()
     )
 
 }

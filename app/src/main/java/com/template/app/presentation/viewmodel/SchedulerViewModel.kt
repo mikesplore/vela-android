@@ -29,13 +29,13 @@ data class SchedulerState(
     val command: String = "",
     val runAt: String = "",
     val isRecurring: Boolean = false,
-    val recurringInterval: String? = "Daily"
+    val cronExpression: String = ""
 )
 
 @HiltViewModel
 class SchedulerViewModel @Inject constructor(
     private val velaRepository: SchedulesRepository,
-    private val appEventManager: AppEventManager // Added
+    private val appEventManager: AppEventManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SchedulerState())
@@ -78,17 +78,44 @@ class SchedulerViewModel @Inject constructor(
         _state.update { it.copy(isRecurring = value) }
     }
 
-    fun createTask() {
+    fun updateCronExpression(value: String) {
+        _state.update { it.copy(cronExpression = value) }
+    }
+
+    fun resetForm() {
+        _state.update {
+            it.copy(
+                command = "",
+                runAt = "",
+                isRecurring = false,
+                cronExpression = "",
+                error = null
+            )
+        }
+    }
+
+    fun createTask(onSuccess: () -> Unit = {}) {
         val currentState = _state.value
         if (currentState.command.isBlank() || currentState.runAt.isBlank()) return
+        if (currentState.isRecurring && currentState.cronExpression.isBlank()) {
+            appEventManager.showActionErrorSnackbar("Enter a cron expression for recurring tasks")
+            return
+        }
+
+        val (command, args) = parseCommandLine(currentState.command)
+        if (command.isBlank()) {
+            appEventManager.showActionErrorSnackbar("Command is required")
+            return
+        }
 
         viewModelScope.launch {
             appEventManager.setLoading(true)
             _state.update { it.copy(isCreating = true) }
             val result = velaRepository.createScheduledTask(
-                command = currentState.command,
+                command = command,
+                args = args,
                 runAt = currentState.runAt,
-                recurring = if (currentState.isRecurring) currentState.recurringInterval else null
+                recurring = if (currentState.isRecurring) currentState.cronExpression.trim() else null
             )
 
             when (result) {
@@ -99,10 +126,12 @@ class SchedulerViewModel @Inject constructor(
                             command = "",
                             runAt = "",
                             isRecurring = false,
+                            cronExpression = "",
                             error = null
                         )
                     }
                     appEventManager.showActionSuccessSnackbar("Task scheduled successfully")
+                    onSuccess()
                 }
 
                 is Resource.Error -> {
@@ -154,14 +183,32 @@ class SchedulerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * DatePicker gives UTC midnight for the selected calendar day; combine with local hour/minute
+     * and emit ISO-8601 with zone offset (e.g. 2026-07-18T22:00:00+03:00).
+     */
     fun formatToIsoTimestamp(dateMillis: Long, hour: Int, minute: Int): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-        sdf.timeZone = TimeZone.getTimeZone("UTC")
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = dateMillis
-        calendar.set(Calendar.HOUR_OF_DAY, hour)
-        calendar.set(Calendar.MINUTE, minute)
-        calendar.set(Calendar.SECOND, 0)
-        return sdf.format(calendar.time)
+        val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = dateMillis
+        }
+        val localTz = TimeZone.getDefault()
+        val cal = Calendar.getInstance(localTz).apply {
+            set(Calendar.YEAR, utcCal.get(Calendar.YEAR))
+            set(Calendar.MONTH, utcCal.get(Calendar.MONTH))
+            set(Calendar.DAY_OF_MONTH, utcCal.get(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
+        sdf.timeZone = localTz
+        return sdf.format(cal.time)
+    }
+
+    private fun parseCommandLine(input: String): Pair<String, List<String>> {
+        val parts = input.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (parts.isEmpty()) return "" to emptyList()
+        return parts.first() to parts.drop(1)
     }
 }

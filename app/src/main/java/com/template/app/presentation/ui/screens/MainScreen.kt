@@ -171,7 +171,7 @@ fun MoreMenuGrid(onNavigate: (String) -> Unit) {
         //NavigationItem("Security", Routes.SECURITY, Icons.Default.Security),
         NavigationItem("Scheduler", Routes.SCHEDULER, Icons.Default.Schedule),
         NavigationItem("Network", Routes.NETWORK, Icons.Default.NetworkCheck),
-        //NavigationItem("Maintenance", Routes.MAINTENANCE, Icons.Default.Build),
+        NavigationItem("Maintenance", Routes.MAINTENANCE, Icons.Default.Build),
         NavigationItem("Power", Routes.POWER, Icons.Default.PowerSettingsNew),
         NavigationItem("Clipboard", Routes.CLIPBOARD, Icons.Default.ContentPaste),
         //NavigationItem("Input", Routes.INPUT_CONTROL, Icons.Default.Keyboard),

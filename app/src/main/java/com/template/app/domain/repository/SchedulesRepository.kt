@@ -8,7 +8,12 @@ interface SchedulesRepository {
 
     fun observeScheduledTasks(): Flow<List<VelaScheduledTask>>
     suspend fun getScheduledTasks(): Resource<List<VelaScheduledTask>>
-    suspend fun createScheduledTask(command: String, runAt: String, recurring: String? = null): Resource<VelaScheduledTask>
+    suspend fun createScheduledTask(
+        command: String,
+        args: List<String> = emptyList(),
+        runAt: String,
+        recurring: String? = null
+    ): Resource<Unit>
     suspend fun cancelScheduledTask(taskId: String): Resource<Unit>
     suspend fun runTaskNow(taskId: String): Resource<Unit>
 }

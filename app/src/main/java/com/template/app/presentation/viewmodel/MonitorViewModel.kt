@@ -2,13 +2,13 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.template.app.core.utils.Resource
 import com.template.app.domain.model.*
 import com.template.app.domain.repository.MonitorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -40,6 +40,7 @@ class MonitorViewModel @Inject constructor(
 
     init {
         observeMonitorData()
+        startPolling()
     }
 
     private fun observeMonitorData() {
@@ -79,15 +80,43 @@ class MonitorViewModel @Inject constructor(
             .onEach { data -> _state.update { it.copy(battery = data) } }
             .launchIn(viewModelScope)
 
-        repository.observeTopProcessesByCpu(10)
+        repository.observeTopProcessesByCpu(20)
             .onEach { data -> _state.update { it.copy(topProcessesByCpu = data) } }
             .launchIn(viewModelScope)
 
-        repository.observeTopProcessesByMemory(10)
+        repository.observeTopProcessesByMemory(20)
             .onEach { data -> _state.update { it.copy(topProcessesByMemory = data) } }
             .launchIn(viewModelScope)
     }
 
+    /** Direct endpoint polls — not via snapshot. */
+    private fun startPolling() {
+        if (pollingJob?.isActive == true) return
+        pollingJob = viewModelScope.launch {
+            while (isActive) {
+                _state.update { it.copy(isRefreshing = true) }
+                repository.getCpuUsage()
+                repository.getRamUsage()
+                repository.getDiskIo()
+                repository.getNetworkIo()
+                repository.getMonitorProcesses()
+                _state.update { it.copy(isRefreshing = false) }
+                delay(5_000)
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _state.update { it.copy(isRefreshing = true, error = null) }
+            repository.getDiskIo()
+            repository.getNetworkIo()
+            repository.getMonitorProcesses()
+            repository.getCpuUsage()
+            repository.getRamUsage()
+            _state.update { it.copy(isRefreshing = false) }
+        }
+    }
 
     override fun onCleared() {
         super.onCleared()

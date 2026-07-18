@@ -47,9 +47,9 @@ vela-android/
 
 | Area | Path | Role |
 |------|------|------|
-| Entry | `MainActivity.kt`, `MyApplication.kt` (`BaseApplication`) | App bootstrap; Hilt `@HiltAndroidApp` on `BaseApplication` |
+| Entry | `MainActivity.kt` (`VelaTopBar`, health + device chip), `MyApplication.kt` (`BaseApplication`) | App bootstrap; Hilt `@HiltAndroidApp` on `BaseApplication` |
 | Presentation UI | `presentation/ui/` | Compose screens, components, theme, nav |
-| ViewModels | `presentation/viewmodel/` | UI state / events |
+| ViewModels | `presentation/viewmodel/` | UI state / events (`MainViewModel` owns top-bar device switch) |
 | Domain models | `domain/model/` | Pure models (`PairedDevice`, …) |
 | Domain repos | `domain/repository/` | Interfaces (`DeviceRepository`, …) |
 | Use cases | `domain/usecase/` | `DeviceUseCases`, `SettingsUseCases`, `UserUseCases` |
@@ -68,11 +68,13 @@ vela-android/
 | Concern | File |
 |---------|------|
 | Launcher / deep link pairing | `AndroidManifest.xml`, `MainActivity.kt` |
+| Top bar (title, health dot, device switcher) | `MainActivity.kt` → `VelaTopBar` trailing: device chip + `ConnectionStatusIndicator` |
 | Application class | `MyApplication.kt` → `BaseApplication` |
 | Routes + `NavHost` | `presentation/ui/AppNavHost.kt` (`Routes` object) |
 | Tab shell | `presentation/ui/screens/MainScreen.kt` |
 | Theme | `presentation/ui/theme/{Color,Theme,Type}.kt` |
 | Shared UI | `presentation/ui/components/` (`DeviceSwitcherSheet`, …) |
+| Uptime display | `DashboardComponents.kt` → `StatusCard` (segmented hrs/min/sec or days/hrs/min) |
 
 ### Routes (from `AppNavHost.kt`)
 
@@ -93,7 +95,8 @@ Flows: `onboarding` → `main`; `add_device` (pair additional agent); start dest
 | App prefs (theme only) | `SettingsEntity` / `ConnectionSettings` / `SettingsRepository` |
 | Legacy upgrade | `LegacyConnectionMigrator.kt` + `LegacyConnectionRestorer.kt` (v25 → v26) |
 | Add device UI | `screens/AddDeviceScreen.kt`, `AddDeviceViewModel.kt` |
-| Device list UI | `SettingsScreen` Devices section; dashboard chip + `DeviceSwitcherSheet` |
+| Device switcher UI | `MainActivity` top-bar chip (beside health) → `DeviceSwitcherSheet`; manage list in `SettingsScreen` (flat rows) |
+| Switch / list state | `MainViewModel` (`activeDevice`, `pairedDevices`, `switchDevice`) |
 
 Room cache (Vela + assistant) is keyed by `connectionId`. Repos inject `ActiveConnectionProvider` and pass it to DAO calls.
 
@@ -103,7 +106,8 @@ For a feature, open Screen → ViewModel → domain repo → impl → API/DAO. N
 
 | Feature | Screen | ViewModel | Domain repo | Impl | Notes |
 |---------|--------|-----------|-------------|------|-------|
-| Dashboard / health | `screens/DashboardScreen.kt` (+ `DashboardComponents.kt`) | `DashboardViewModel.kt` | `HealthRepository`, `MonitorRepository`, … | matching `*RepositoryImpl` | Device chip + switcher; sync via `DataSyncManager` |
+| Dashboard / health | `screens/DashboardScreen.kt` (+ `DashboardComponents.kt`) | `DashboardViewModel.kt` | `HealthRepository`, `MonitorRepository`, … | matching `*RepositoryImpl` | Segmented uptime; sync via `DataSyncManager`; device switch is in `MainActivity` top bar |
+| Top-bar devices | `MainActivity.kt` | `MainViewModel.kt` | `DeviceRepository` | | Chip beside health → `DeviceSwitcherSheet` |
 | Chat / assistant | `screens/chat/` | `AssistantViewModel.kt` | `AssistantRepository` | `AssistantRepositoryImpl` | Chat scoped per `connectionId` |
 | Display | `screens/DisplayScreen.kt` | `DisplayViewModel.kt` | `DisplayRepository` | `DisplayRepositoryImpl` | |
 | Audio | `screens/AudioScreen.kt` | `AudioViewModel.kt` | `AudioRepository` | `AudioRepositoryImpl` | |
@@ -112,11 +116,11 @@ For a feature, open Screen → ViewModel → domain repo → impl → API/DAO. N
 | Media | `screens/MediaScreen.kt` | `MediaViewModel.kt` | `MediaRepository` | `MediaRepositoryImpl` | |
 | Files | `screens/FilesScreen.kt` | `FilesViewModel.kt` | `FilesystemRepository` | `FilesystemRepositoryImpl` | |
 | Processes | `screens/ProcessesScreen.kt` | `ProcessesViewModel.kt` | `ProcessesRepository` | `ProcessesRepositoryImpl` | |
-| Scheduler | `screens/SchedulerScreen.kt` | `SchedulerViewModel.kt` | `SchedulesRepository` | `SchedulesRepositoryImpl` | |
-| Maintenance | `screens/MaintainanceScreen.kt` | `MaintainanceViewModel.kt` | `MaintenanceRepository` | `MaintenanceRepositoryImpl` | Filename spelling: Maintainance |
+| Scheduler | `screens/SchedulerScreen.kt` | `SchedulerViewModel.kt` | `SchedulesRepository` | `SchedulesRepositoryImpl` | Shell jobs: create needs `command`+`args`+`run_at` (+ cron in `recurring`); optimistic Room upsert after create; list wipe only on explicit `jobs`/`tasks` array |
+| Maintenance | `screens/MaintainanceScreen.kt` | `MaintainanceViewModel.kt` | `MaintenanceRepository` | `MaintenanceRepositoryImpl` | Filename spelling: Maintainance; all services in Room (`vela_services`); UI shows 5 + search; logs on expand |
 | Power | `screens/PowerScreen.kt` | `PowerViewModel.kt` | `PowerRepository` | `PowerRepositoryImpl` | |
 | Clipboard | `screens/ClipboardScreen.kt` | `ClipboardViewModel.kt` | `ClipboardRepository` | `ClipboardRepositoryImpl` | |
-| Monitor | `screens/MonitorScreen.kt` | `MonitorViewModel.kt` | `MonitorRepository` | `MonitorRepositoryImpl` | |
+| Monitor | `screens/MonitorScreen.kt` | `MonitorViewModel.kt` | `MonitorRepository` | `MonitorRepositoryImpl` | Disk/net I/O + processes via direct `GET /monitor/disk-io`, `/network-io`, `/processes` (not snapshot-only) |
 | Settings / devices | `screens/SettingsScreen.kt` | `SettingsViewModel.kt` | `DeviceRepository`, `SettingsRepository` | | Devices list, add/remove/switch |
 | Onboarding / pair first | `screens/onboarding/` | `OnboardingViewModel.kt` | `PairDeviceUseCase` | | Does **not** wipe existing devices |
 | Add device | `screens/AddDeviceScreen.kt` | `AddDeviceViewModel.kt` | `PairDeviceUseCase` | | Appends + activates |
@@ -127,7 +131,7 @@ For a feature, open Screen → ViewModel → domain repo → impl → API/DAO. N
 
 | Kind | Path |
 |------|------|
-| Room DB | `core/data/local/AppDatabase.kt` (v26), `Converters.kt` |
+| Room DB | `core/data/local/AppDatabase.kt` (v27), `Converters.kt` |
 | DAOs | `dao/{PairedDevice,Assistant,Settings,User,Vela}Dao.kt` |
 | Entities | `entities/` — Vela bulk in `VelaEntities.kt` (all scoped by `connectionId`) |
 | Preferences | `core/data/local/UserPreferencesDataStore.kt` |

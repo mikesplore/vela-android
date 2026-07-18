@@ -1,14 +1,19 @@
 package com.template.app.presentation.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,201 +23,434 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.template.app.domain.model.VelaPackageUpdate
 import com.template.app.domain.model.VelaService
+import com.template.app.presentation.ui.components.SectionHeader
+import com.template.app.presentation.ui.components.VelaConfirmationSheet
+import com.template.app.presentation.ui.theme.DarkSuccess
+import com.template.app.presentation.ui.theme.DarkWarning
+import com.template.app.presentation.ui.theme.LightSuccess
+import com.template.app.presentation.ui.theme.LightWarning
 import com.template.app.presentation.viewmodel.MaintenanceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MaintenanceScreen(
-    onBack: () -> Unit,
+    onBack: () -> Unit = {},
     viewModel: MaintenanceViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showUpdateConfirm by remember { mutableStateOf(false) }
+    val isDark = !MaterialTheme.colorScheme.isLight()
+    val successColor = if (isDark) DarkSuccess else LightSuccess
+    val warningColor = if (isDark) DarkWarning else LightWarning
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("System Maintenance", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // 1. Quick Actions
-            MaintenanceSection(title = "Quick Actions") {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ActionButton(
-                        label = "Clear Cache",
-                        icon = Icons.Default.DeleteSweep,
-                        onClick = { viewModel.clearCache() },
-                        modifier = Modifier.weight(1f)
-                    )
-                    ActionButton(
-                        label = "Sync Time",
-                        icon = Icons.Default.Sync,
-                        isAccent = true,
-                        onClick = { viewModel.syncTime() },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp)
+    ) {
+        if (uiState.isLoading && uiState.visibleServices.isEmpty() && uiState.totalServiceCount == 0) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 48.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
             }
-
-            // 2. Updates (Using VelaMaintenanceUpdate mapping)
+        } else {
             if (uiState.availableUpdates.isNotEmpty()) {
-                MaintenanceSection(title = "Pending Updates") {
-                    UpdateCard(
-                        packages = uiState.availableUpdates,
-                        onRunUpdate = { viewModel.runUpdates() }
-                    )
-                }
-            }
-
-            // 3. Services (Using VelaService mapping)
-            MaintenanceSection(title = "Core Services") {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    uiState.services.forEach { service ->
-                        ServiceItem(
-                            service = service,
-                            onStart = { viewModel.startService(service.name) },
-                            onStop = { viewModel.stopService(service.name) },
-                            onRestart = { viewModel.restartService(service.name) }
-                        )
-                    }
-                }
-            }
-
-            // 4. Logs (Using VelaLogs mapping)
-            MaintenanceSection(title = "System Logs") {
-                LogViewer(
-                    currentService = uiState.logFilter,
-                    logs = uiState.recentLogs
+                UpdateCard(
+                    manager = uiState.updateManager,
+                    packages = uiState.availableUpdates,
+                    isUpdating = uiState.isUpdating,
+                    warningColor = warningColor,
+                    onRunUpdate = { showUpdateConfirm = true }
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            MaintenanceSection(title = "Services") {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = viewModel::updateSearch,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = {
+                        Text(
+                            "Search all cached services…",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updateSearch("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = when {
+                        uiState.totalServiceCount == 0 -> "No services cached yet"
+                        uiState.searchQuery.isBlank() ->
+                            "Showing ${uiState.visibleServices.size} of ${uiState.matchedCount}"
+                        else ->
+                            "Showing ${uiState.visibleServices.size} of ${uiState.matchedCount} matches · ${uiState.totalServiceCount} cached"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                if (uiState.visibleServices.isEmpty()) {
+                    EmptyHint(
+                        if (uiState.searchQuery.isBlank()) "No services loaded yet"
+                        else "No services match “${uiState.searchQuery}”"
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        uiState.visibleServices.forEach { service ->
+                            val expanded = uiState.expandedService == service.name
+                            ServiceCard(
+                                service = service,
+                                expanded = expanded,
+                                logs = if (expanded) uiState.serviceLogs else emptyList(),
+                                isLoadingLogs = expanded && uiState.isLoadingLogs,
+                                successColor = successColor,
+                                onToggle = { viewModel.toggleServiceExpanded(service.name) },
+                                onRefreshLogs = { viewModel.refreshLogs() },
+                                onStart = { viewModel.startService(service.name) },
+                                onStop = { viewModel.stopService(service.name) },
+                                onRestart = { viewModel.restartService(service.name) }
+                            )
+                        }
+
+                        if (uiState.canLoadMore) {
+                            OutlinedButton(
+                                onClick = viewModel::loadMore,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Load more")
+                            }
+                        }
+                    }
+                }
+            }
+
+            HostUpkeepBar(
+                onClearCache = { viewModel.clearCache() },
+                onSyncTime = { viewModel.syncTime() }
+            )
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    if (showUpdateConfirm) {
+        VelaConfirmationSheet(
+            onDismiss = { showUpdateConfirm = false },
+            onConfirm = { viewModel.runUpdates() },
+            title = "Apply system updates?",
+            message = "This runs package updates on the host and can take several minutes.",
+            details = buildList {
+                if (uiState.updateManager.isNotBlank()) add("Manager: ${uiState.updateManager}")
+                add("${uiState.availableUpdates.size} package(s)")
+            },
+            confirmText = "Update",
+            icon = Icons.Default.SystemUpdate,
+            isDanger = false
+        )
     }
 }
 
 @Composable
 private fun MaintenanceSection(title: String, content: @Composable () -> Unit) {
     Column {
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        SectionHeader(title)
+        Spacer(modifier = Modifier.height(12.dp))
         content()
     }
 }
 
 @Composable
-private fun UpdateCard(packages: List<VelaPackageUpdate>, onRunUpdate: () -> Unit) {
+private fun EmptyHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    )
+}
+
+@Composable
+private fun UpdateCard(
+    manager: String,
+    packages: List<VelaPackageUpdate>,
+    isUpdating: Boolean,
+    warningColor: Color,
+    modifier: Modifier = Modifier,
+    onRunUpdate: () -> Unit
+) {
     Surface(
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
+        color = warningColor.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(0.5.dp, warningColor.copy(alpha = 0.35f))
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Color(0xFFE8A440))
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = "${packages.size} System Packages Ready",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = warningColor)
+                Spacer(modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "${packages.size} package${if (packages.size == 1) "" else "s"} ready",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (manager.isNotBlank()) {
+                        Text(
+                            text = manager,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             Column(modifier = Modifier.padding(vertical = 12.dp)) {
                 packages.take(3).forEach { pkg ->
                     Text(
-                        text = "• ${pkg.name} → ${pkg.version}",
+                        text = "• ${pkg.packageName}",
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(vertical = 2.dp)
+                        modifier = Modifier.padding(vertical = 2.dp),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 if (packages.size > 3) {
                     Text(
-                        "and ${packages.size - 3} more...",
+                        "and ${packages.size - 3} more…",
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(start = 12.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 12.dp, top = 4.dp)
                     )
                 }
             }
 
             Button(
                 onClick = onRunUpdate,
+                enabled = !isUpdating,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8A440), contentColor = Color.Black),
-                shape = RoundedCornerShape(12.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = warningColor,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(9.dp)
             ) {
-                Text("Execute Update Sequence", fontWeight = FontWeight.Bold)
+                if (isUpdating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.Black
+                    )
+                } else {
+                    Text("Apply updates", fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ServiceItem(
+private fun ServiceCard(
     service: VelaService,
+    expanded: Boolean,
+    logs: List<String>,
+    isLoadingLogs: Boolean,
+    successColor: Color,
+    modifier: Modifier = Modifier,
+    onToggle: () -> Unit,
+    onRefreshLogs: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onRestart: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color.Transparent
+        color = if (expanded) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+        },
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(
+            0.5.dp,
+            if (expanded) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+            else MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+        )
     ) {
-        Row(
-            modifier = Modifier.padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Status Indicator
-            Box(
+        Column {
+            Row(
                 modifier = Modifier
-                    .size(10.dp)
-                    .background(
-                        if (service.active) Color(0xFF6FCB72) else MaterialTheme.colorScheme.outline,
-                        CircleShape
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggle)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(
+                            if (service.isRunning) successColor
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            CircleShape
+                        )
+                )
+
+                Spacer(modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = service.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-            )
+                    Text(
+                        text = service.description.ifBlank {
+                            "${service.active}/${service.sub}".trim('/')
+                        }.ifBlank { if (service.isRunning) "Running" else "Stopped" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
-            Spacer(Modifier.width(16.dp))
-
-            Column(Modifier.weight(1f)) {
-                Text(service.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                Text(
-                    text = if (service.active) "Running" else "Stopped",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (service.active) {
-                    ServiceActionButton(Icons.Default.Stop, onClick = onStop, isDanger = true)
-                    ServiceActionButton(Icons.Default.RestartAlt, onClick = onRestart)
-                } else {
-                    ServiceActionButton(Icons.Default.PlayArrow, onClick = onStart)
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    ) {
+                        if (service.isRunning) {
+                            ServiceActionButton(Icons.Default.Stop, onClick = onStop, isDanger = true)
+                            ServiceActionButton(Icons.Default.RestartAlt, onClick = onRestart)
+                        } else {
+                            ServiceActionButton(Icons.Default.PlayArrow, onClick = onStart)
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        ServiceActionButton(Icons.Default.Refresh, onClick = onRefreshLogs)
+                    }
+
+                    Text(
+                        text = "${service.active} · ${service.sub}".trim(' ', '·'),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 100.dp, max = 180.dp)
+                    ) {
+                        when {
+                            isLoadingLogs -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+
+                            logs.isEmpty() -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "No log lines",
+                                        color = Color.White.copy(alpha = 0.4f),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+
+                            else -> {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(10.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    logs.forEach { log ->
+                                        Text(
+                                            text = log,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = Color(0xFF6FCB72).copy(alpha = 0.85f),
+                                            lineHeight = 15.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -220,67 +458,108 @@ private fun ServiceItem(
 }
 
 @Composable
-private fun ServiceActionButton(icon: ImageVector, onClick: () -> Unit, isDanger: Boolean = false) {
+private fun ServiceActionButton(
+    icon: ImageVector,
+    onClick: () -> Unit,
+    isDanger: Boolean = false
+) {
     FilledTonalIconButton(
         onClick = onClick,
         modifier = Modifier.size(36.dp),
         shape = RoundedCornerShape(8.dp),
-        colors = if (isDanger) IconButtonDefaults.filledTonalIconButtonColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.error
-        ) else IconButtonDefaults.filledTonalIconButtonColors()
+        colors = if (isDanger) {
+            IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                contentColor = MaterialTheme.colorScheme.error
+            )
+        } else {
+            IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                contentColor = MaterialTheme.colorScheme.primary
+            )
+        }
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
     }
 }
 
 @Composable
-private fun LogViewer(currentService: String, logs: List<String>) {
-    Column {
-        Surface(
-            color = Color.Black,
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
+private fun HostUpkeepBar(
+    onClearCache: () -> Unit,
+    onSyncTime: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+    ) {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            thickness = 0.5.dp
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        Text(
+            text = "Host upkeep",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            letterSpacing = 0.6.sp
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(modifier = Modifier.padding(12.dp)) {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    logs.forEach { log ->
-                        Text(
-                            text = log,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color.Green.copy(alpha = 0.7f),
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
-
-                // Overlay label
-                Text(
-                    text = "LOGS: $currentService",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.3f),
-                    modifier = Modifier.align(Alignment.TopEnd)
-                )
-            }
+            UpkeepAction(
+                label = "Clear cache",
+                icon = Icons.Default.DeleteSweep,
+                onClick = onClearCache,
+                modifier = Modifier.weight(1f)
+            )
+            UpkeepAction(
+                label = "Sync time",
+                icon = Icons.Default.Sync,
+                onClick = onSyncTime,
+                modifier = Modifier.weight(1f),
+                emphasized = true
+            )
         }
     }
 }
 
 @Composable
-private fun ActionButton(label: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier, isAccent: Boolean = false) {
-    Surface(
+private fun UpkeepAction(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    emphasized: Boolean = false
+) {
+    OutlinedButton(
         onClick = onClick,
-        modifier = modifier.height(80.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = if (isAccent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        modifier = modifier.height(42.dp),
+        shape = RoundedCornerShape(10.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        colors = if (emphasized) {
+            ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.primary
+            )
+        } else {
+            ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        border = BorderStroke(
+            0.5.dp,
+            if (emphasized) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+            else MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+        )
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, contentDescription = null, tint = if (isAccent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-            Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
-        }
+        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }
 }
+
+@Composable
+private fun ColorScheme.isLight(): Boolean =
+    background.red > 0.5f && background.green > 0.5f && background.blue > 0.5f

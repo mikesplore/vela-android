@@ -4,95 +4,169 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
+import com.template.app.domain.model.VelaPackageUpdate
 import com.template.app.domain.model.VelaService
 import com.template.app.domain.repository.MaintenanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class MaintenanceUiState(
-    val services: List<VelaService> = emptyList(),
-    val availableUpdates: List<com.template.app.domain.model.VelaPackageUpdate> = emptyList(),
-    val recentLogs: List<String> = emptyList(),
-    val logFilter: String = "system",
-    val logLinesCount: Int = 50,
+    val visibleServices: List<VelaService> = emptyList(),
+    val totalServiceCount: Int = 0,
+    val matchedCount: Int = 0,
+    val searchQuery: String = "",
+    val canLoadMore: Boolean = false,
+    val availableUpdates: List<VelaPackageUpdate> = emptyList(),
+    val updateManager: String = "",
+    val expandedService: String? = null,
+    val serviceLogs: List<String> = emptyList(),
+    val isLoadingLogs: Boolean = false,
     val isLoading: Boolean = false,
-    val error: String? = null,
-    val testResult: MaintenanceViewModel.MaintenanceTaskResult = MaintenanceViewModel.MaintenanceTaskResult.Idle
+    val isUpdating: Boolean = false,
+    val error: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MaintenanceViewModel @Inject constructor(
     private val repository: MaintenanceRepository,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 
+    private val searchQuery = MutableStateFlow("")
+    private val visibleLimit = MutableStateFlow(PAGE_SIZE)
+
     private val _uiState = MutableStateFlow(MaintenanceUiState())
     val uiState: StateFlow<MaintenanceUiState> = _uiState.asStateFlow()
 
-    sealed class MaintenanceTaskResult {
-        object Idle : MaintenanceTaskResult()
-        object Loading : MaintenanceTaskResult()
-        object Success : MaintenanceTaskResult()
-        data class Error(val message: String) : MaintenanceTaskResult()
-    }
-
     init {
+        // UI page: Room query with search + growing LIMIT (load more).
+        combine(searchQuery, visibleLimit) { query, limit -> query to limit }
+            .flatMapLatest { (query, limit) ->
+                repository.observeServices(query = query, limit = limit)
+            }
+            .onEach { services ->
+                _uiState.update { state ->
+                    state.copy(
+                        visibleServices = services,
+                        canLoadMore = services.size < state.matchedCount
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+
+        // Match count always comes from the full DB cache for the current query.
+        searchQuery
+            .flatMapLatest { query -> repository.observeMatchedServiceCount(query) }
+            .onEach { matched ->
+                _uiState.update { state ->
+                    state.copy(
+                        matchedCount = matched,
+                        canLoadMore = state.visibleServices.size < matched
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+
+        repository.observeServiceCount()
+            .onEach { count ->
+                _uiState.update { it.copy(totalServiceCount = count) }
+            }
+            .launchIn(viewModelScope)
+
         refreshAll()
     }
 
     fun refreshAll() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            // Network: pull the full service list into Room.
             loadServices()
             loadUpdates()
-            fetchLogs()
             _uiState.update { it.copy(isLoading = false) }
         }
     }
 
-    // --- Services ---
+    fun updateSearch(query: String) {
+        searchQuery.value = query
+        visibleLimit.value = PAGE_SIZE
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    /** Reveal the next page from Room (does not call the network). */
+    fun loadMore() {
+        if (!_uiState.value.canLoadMore) return
+        visibleLimit.update { it + PAGE_SIZE }
+    }
+
+    fun toggleServiceExpanded(name: String) {
+        val currentlyExpanded = _uiState.value.expandedService
+        if (currentlyExpanded == name) {
+            _uiState.update {
+                it.copy(expandedService = null, serviceLogs = emptyList(), isLoadingLogs = false)
+            }
+        } else {
+            _uiState.update {
+                it.copy(expandedService = name, serviceLogs = emptyList(), isLoadingLogs = true)
+            }
+            fetchLogs(name)
+        }
+    }
+
     private suspend fun loadServices() {
         when (val result = repository.getServices()) {
-            is Resource.Success -> {
-                _uiState.update { it.copy(services = result.data) }
-            }
             is Resource.Error -> {
-                appEventManager.showActionErrorSnackbar("Failed to load services")
+                _uiState.update { it.copy(error = result.message) }
+                appEventManager.showActionErrorSnackbar(result.message)
             }
+
             else -> Unit
         }
     }
 
-    fun startService(name: String) = performServiceAction(name, "started") { repository.startService(name) }
-    fun stopService(name: String) = performServiceAction(name, "stopped") { repository.stopService(name) }
-    fun restartService(name: String) = performServiceAction(name, "restarted") { repository.restartService(name) }
+    fun startService(name: String) = performServiceAction(name) { repository.startService(name) }
+    fun stopService(name: String) = performServiceAction(name) { repository.stopService(name) }
+    fun restartService(name: String) = performServiceAction(name) { repository.restartService(name) }
 
-    private fun performServiceAction(serviceName: String, actionVerb: String, action: suspend () -> Resource<Unit>) {
+    private fun performServiceAction(serviceName: String, action: suspend () -> Resource<Unit>) {
         viewModelScope.launch {
             appEventManager.setLoading(true)
             when (val result = action()) {
-                is Resource.Error -> {
-                    appEventManager.showActionErrorSnackbar("Action failed")
+                is Resource.Success -> {
+                    appEventManager.showActionSuccessSnackbar("Service updated")
+                    loadServices()
+                    if (_uiState.value.expandedService == serviceName) {
+                        fetchLogs(serviceName)
+                    }
                 }
+
+                is Resource.Error -> {
+                    appEventManager.showActionErrorSnackbar(result.message)
+                }
+
                 else -> Unit
             }
-            loadServices() // Always refresh list
             appEventManager.setLoading(false)
         }
     }
 
-
-    // --- Quick Actions ---
     fun clearCache() {
         viewModelScope.launch {
             appEventManager.setLoading(true)
-            if (repository.clearCache() is Resource.Error) {
-                appEventManager.showActionErrorSnackbar("Action failed")
+            when (val result = repository.clearCache()) {
+                is Resource.Success -> appEventManager.showActionSuccessSnackbar("Cache cleared")
+                is Resource.Error -> appEventManager.showActionErrorSnackbar(result.message)
+                else -> Unit
             }
             appEventManager.setLoading(false)
         }
@@ -101,21 +175,26 @@ class MaintenanceViewModel @Inject constructor(
     fun syncTime() {
         viewModelScope.launch {
             appEventManager.setLoading(true)
-            if (repository.syncTime() is Resource.Error) {
-                appEventManager.showActionErrorSnackbar("Action failed")
+            when (val result = repository.syncTime()) {
+                is Resource.Success -> appEventManager.showActionSuccessSnackbar("Time sync enabled")
+                is Resource.Error -> appEventManager.showActionErrorSnackbar(result.message)
+                else -> Unit
             }
             appEventManager.setLoading(false)
         }
     }
 
-    // --- Updates ---
     private suspend fun loadUpdates() {
         when (val result = repository.checkUpdates()) {
             is Resource.Success -> {
-                _uiState.update { state ->
-                    state.copy(availableUpdates = result.data.packages)
+                _uiState.update {
+                    it.copy(
+                        availableUpdates = result.data.packages,
+                        updateManager = result.data.manager
+                    )
                 }
             }
+
             else -> Unit
         }
     }
@@ -123,40 +202,52 @@ class MaintenanceViewModel @Inject constructor(
     fun runUpdates() {
         viewModelScope.launch {
             appEventManager.setLoading(true)
-            when (repository.runUpdates()) {
+            _uiState.update { it.copy(isUpdating = true) }
+            when (val result = repository.runUpdates()) {
                 is Resource.Success -> {
-                    _uiState.update { it.copy(availableUpdates = emptyList()) }
+                    _uiState.update { it.copy(availableUpdates = emptyList(), isUpdating = false) }
+                    appEventManager.showActionSuccessSnackbar("System updated")
+                    loadUpdates()
                 }
+
                 is Resource.Error -> {
-                    appEventManager.showActionErrorSnackbar("Action failed")
+                    _uiState.update { it.copy(isUpdating = false) }
+                    appEventManager.showActionErrorSnackbar(result.message)
                 }
-                else -> Unit
+
+                else -> _uiState.update { it.copy(isUpdating = false) }
             }
             appEventManager.setLoading(false)
         }
     }
 
-    // --- Logs ---
-    fun updateLogFilter(filter: String) {
-        _uiState.update { it.copy(logFilter = filter) }
-        fetchLogs()
+    fun refreshLogs() {
+        _uiState.value.expandedService?.let { fetchLogs(it) }
     }
 
-    fun updateLogLines(count: Int) {
-        _uiState.update { it.copy(logLinesCount = count) }
-        fetchLogs()
-    }
-
-    fun fetchLogs() {
+    private fun fetchLogs(service: String) {
+        if (service.isBlank()) return
         viewModelScope.launch {
-            val filter = _uiState.value.logFilter
-            val lines = _uiState.value.logLinesCount
-            when (val result = repository.getLogs(filter, lines)) {
+            _uiState.update { it.copy(isLoadingLogs = true) }
+            when (val result = repository.getLogs(service, LOG_LINES)) {
                 is Resource.Success -> {
-                    _uiState.update { it.copy(recentLogs = result.data?.lines ?: emptyList()) }
+                    _uiState.update {
+                        it.copy(serviceLogs = result.data.lines, isLoadingLogs = false)
+                    }
                 }
-                else -> Unit
+
+                is Resource.Error -> {
+                    _uiState.update { it.copy(serviceLogs = emptyList(), isLoadingLogs = false) }
+                    appEventManager.showActionErrorSnackbar(result.message)
+                }
+
+                else -> _uiState.update { it.copy(isLoadingLogs = false) }
             }
         }
+    }
+
+    companion object {
+        const val PAGE_SIZE = 5
+        private const val LOG_LINES = 40
     }
 }

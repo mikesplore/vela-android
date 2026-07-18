@@ -672,6 +672,38 @@ data class VelaScheduledTaskEntity(
 }
 
 @Entity(
+    tableName = "vela_services",
+    primaryKeys = ["connectionId", "name"]
+)
+data class VelaServiceEntity(
+    val connectionId: Long,
+    val name: String,
+    val load: String,
+    val active: String,
+    val sub: String,
+    val description: String
+) {
+    fun toDomain() = VelaService(
+        name = name,
+        load = load,
+        active = active,
+        sub = sub,
+        description = description
+    )
+
+    companion object {
+        fun fromDomain(connectionId: Long, domain: VelaService) = VelaServiceEntity(
+            connectionId = connectionId,
+            name = domain.name,
+            load = domain.load,
+            active = domain.active,
+            sub = domain.sub,
+            description = domain.description
+        )
+    }
+}
+
+@Entity(
     tableName = "vela_files",
     primaryKeys = ["connectionId", "path"]
 )

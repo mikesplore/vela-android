@@ -47,6 +47,7 @@ import com.template.app.core.data.local.entities.*
         VelaClipboardEntity::class,
         VelaActiveWindowEntity::class,
         VelaScheduledTaskEntity::class,
+        VelaServiceEntity::class,
         VelaFileEntity::class,
         VelaConfigEntity::class,
         VelaWifiNetworkEntity::class,
@@ -56,7 +57,7 @@ import com.template.app.core.data.local.entities.*
         VelaUptimeEntity::class,
         NetUsageEntity::class
     ],
-    version = 26,
+    version = 27,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

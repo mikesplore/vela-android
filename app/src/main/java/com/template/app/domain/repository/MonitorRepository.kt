@@ -21,5 +21,9 @@ interface MonitorRepository {
 
     suspend fun getCpuUsage(): Resource<VelaCpuUsage>
     suspend fun getRamUsage(): Resource<VelaRamUsage>
+    suspend fun getDiskIo(): Resource<List<VelaDiskIo>>
+    suspend fun getNetworkIo(): Resource<List<VelaNetworkIo>>
+    /** GET /monitor/processes — top by CPU and by memory; writes both lists to Room. */
+    suspend fun getMonitorProcesses(): Resource<Pair<List<VelaProcess>, List<VelaProcess>>>
     suspend fun getMonitorSnapshot(): Resource<VelaMonitorSnapshot>
 }

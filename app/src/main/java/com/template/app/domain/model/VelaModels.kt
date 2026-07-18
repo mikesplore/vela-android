@@ -277,25 +277,34 @@ data class VelaScheduledTask(
     val id: String,
     val command: String,
     val nextRun: String,
-    val recurring: String? = null
+    val recurring: String? = null,
+    val trigger: String? = null
 )
 
 // --- Maintenance Models ---
 
 data class VelaMaintenanceUpdate(
-    val updatesAvailable: Boolean,
+    val manager: String,
     val packages: List<VelaPackageUpdate>
 )
 
 data class VelaPackageUpdate(
-    val name: String,
-    val version: String
+    val packageName: String,
+    val current: String? = null,
+    val available: String? = null
 )
 
 data class VelaService(
     val name: String,
-    val active: Boolean
-)
+    val load: String = "",
+    val active: String = "inactive",
+    val sub: String = "",
+    val description: String = ""
+) {
+    val isRunning: Boolean
+        get() = active.equals("active", ignoreCase = true) ||
+            sub.equals("running", ignoreCase = true)
+}
 
 data class VelaLogs(
     val service: String,

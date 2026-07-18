@@ -1,5 +1,6 @@
 package com.template.app.core.data.local.dao
 
+import android.util.Log
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
@@ -399,7 +400,7 @@ interface VelaDao {
     @Upsert
     suspend fun upsertActiveWindow(activeWindow: VelaActiveWindowEntity)
 
-    @Query("SELECT * FROM vela_scheduled_tasks WHERE connectionId = :connectionId")
+    @Query("SELECT * FROM vela_scheduled_tasks WHERE connectionId = :connectionId ORDER BY nextRun ASC")
     fun observeScheduledTasks(connectionId: Long): Flow<List<VelaScheduledTaskEntity>>
 
     @Upsert
@@ -411,12 +412,79 @@ interface VelaDao {
     @Query("DELETE FROM vela_scheduled_tasks WHERE connectionId = :connectionId AND id = :taskId")
     suspend fun deleteScheduledTask(connectionId: Long, taskId: String)
 
+    @Query(
+        "DELETE FROM vela_scheduled_tasks WHERE connectionId = :connectionId AND id NOT IN (:keepIds)"
+    )
+    suspend fun deleteScheduledTasksExcept(connectionId: Long, keepIds: List<String>)
+
     @Transaction
     suspend fun replaceScheduledTasks(connectionId: Long, tasks: List<VelaScheduledTaskEntity>) {
         if (tasks.isEmpty()) {
             clearScheduledTasks(connectionId)
         } else {
             upsertScheduledTasks(tasks)
+            deleteScheduledTasksExcept(connectionId, tasks.map { it.id })
+        }
+    }
+
+    // ── Maintenance services ──
+
+    @Query(
+        """
+        SELECT * FROM vela_services
+        WHERE connectionId = :connectionId
+          AND (
+            :query = ''
+            OR name LIKE '%' || :query || '%'
+            OR description LIKE '%' || :query || '%'
+          )
+        ORDER BY
+          CASE WHEN active = 'active' OR sub = 'running' THEN 0 ELSE 1 END,
+          name ASC
+        LIMIT :limit
+        """
+    )
+    fun observeServices(
+        connectionId: Long,
+        query: String,
+        limit: Int
+    ): Flow<List<VelaServiceEntity>>
+
+    @Query("SELECT COUNT(*) FROM vela_services WHERE connectionId = :connectionId")
+    fun observeServiceCount(connectionId: Long): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM vela_services
+        WHERE connectionId = :connectionId
+          AND (
+            :query = ''
+            OR name LIKE '%' || :query || '%'
+            OR description LIKE '%' || :query || '%'
+          )
+        """
+    )
+    fun observeMatchedServiceCount(connectionId: Long, query: String): Flow<Int>
+
+    @Upsert
+    suspend fun upsertServices(services: List<VelaServiceEntity>)
+
+    @Query("DELETE FROM vela_services WHERE connectionId = :connectionId")
+    suspend fun clearServices(connectionId: Long)
+
+    @Query(
+        "DELETE FROM vela_services WHERE connectionId = :connectionId AND name NOT IN (:keepNames)"
+    )
+    suspend fun deleteServicesExcept(connectionId: Long, keepNames: List<String>)
+
+    @Transaction
+    suspend fun replaceServices(connectionId: Long, services: List<VelaServiceEntity>) {
+        if (services.isEmpty()) {
+            Log.d("MaintenanceRepositoryImpl", "Clearing services for connection $connectionId")
+            clearServices(connectionId)
+        } else {
+            upsertServices(services)
+            deleteServicesExcept(connectionId, services.map { it.name })
         }
     }
 
@@ -463,6 +531,7 @@ interface VelaDao {
         clearFans(connectionId)
         clearClipboard(connectionId)
         clearScheduledTasks(connectionId)
+        clearServices(connectionId)
         // Singletons + remaining tables
         clearFilesAll(connectionId)
         clearSingletonRows(connectionId)

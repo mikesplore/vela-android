@@ -4,9 +4,18 @@ import com.template.app.core.utils.Resource
 import com.template.app.domain.model.VelaLogs
 import com.template.app.domain.model.VelaMaintenanceUpdate
 import com.template.app.domain.model.VelaService
+import kotlinx.coroutines.flow.Flow
 
 interface MaintenanceRepository {
-    // Maintenance
+    /** Paged slice from Room (search + limit). Does not hit the network. */
+    fun observeServices(query: String, limit: Int): Flow<List<VelaService>>
+
+    /** Total rows cached for the active device. */
+    fun observeServiceCount(): Flow<Int>
+
+    /** Match count for [query] against the full Room cache. */
+    fun observeMatchedServiceCount(query: String): Flow<Int>
+
     suspend fun clearCache(): Resource<Unit>
     suspend fun getLogs(service: String, lines: Int): Resource<VelaLogs>
     suspend fun checkUpdates(): Resource<VelaMaintenanceUpdate>

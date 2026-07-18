@@ -371,7 +371,7 @@ interface VelaApiService {
     // ── Scheduler ─────────────────────────────────────────────────────────────
 
     @POST("scheduler/create")
-    suspend fun createScheduledTask(@Body body: SchedulerCreateRequest): ScheduledTask
+    suspend fun createScheduledTask(@Body body: SchedulerCreateRequest): GenericResponse
 
     @GET("scheduler/list")
     suspend fun listScheduledTasks(): SchedulerListResponse
@@ -397,7 +397,7 @@ interface VelaApiService {
     suspend fun checkUpdates(): UpdatesResponse
 
     @POST("maintenance/update")
-    suspend fun runUpdates(): GenericResponse
+    suspend fun runUpdates(@Query("confirm") confirm: Boolean = true): GenericResponse
 
     @POST("maintenance/sync-time")
     suspend fun syncTime(): GenericResponse
@@ -406,13 +406,13 @@ interface VelaApiService {
     suspend fun getServices(): ServicesResponse
 
     @POST("maintenance/service/restart")
-    suspend fun restartService(@Body body: ServiceActionRequest): GenericResponse
+    suspend fun restartService(@Query("name") name: String): GenericResponse
 
     @POST("maintenance/service/stop")
-    suspend fun stopService(@Body body: ServiceActionRequest): GenericResponse
+    suspend fun stopService(@Query("name") name: String): GenericResponse
 
     @POST("maintenance/service/start")
-    suspend fun startService(@Body body: ServiceActionRequest): GenericResponse
+    suspend fun startService(@Query("name") name: String): GenericResponse
 
     // ── Assistant ─────────────────────────────────────────────────────────────
 
