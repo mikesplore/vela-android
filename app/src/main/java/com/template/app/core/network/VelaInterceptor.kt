@@ -1,6 +1,6 @@
 package com.template.app.core.network
 
-import com.template.app.domain.repository.SettingsRepository
+import com.template.app.domain.repository.DeviceRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
@@ -8,43 +8,38 @@ import okhttp3.Response
 import javax.inject.Inject
 
 /**
- * Automatically attaches the Base URL and API token to every outgoing request.
+ * Attaches the active paired device's relay base URL and X-Secret to every request.
  */
 class VelaInterceptor @Inject constructor(
-    private val settingsRepository: SettingsRepository
+    private val deviceRepository: DeviceRepository
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val settings = runBlocking { settingsRepository.getSettings() }
+        val device = runBlocking { deviceRepository.getActiveDevice() }
         val originalRequest = chain.request()
         val originalUrl = originalRequest.url
 
-        if (settings.baseUrl.isBlank()) {
+        if (device == null || device.relayBaseUrl.isBlank()) {
             return chain.proceed(originalRequest)
         }
 
-        val settingsUrl = settings.baseUrl.let { 
+        val settingsUrl = device.relayBaseUrl.let {
             if (it.startsWith("http")) it else "http://$it"
         }.toHttpUrlOrNull() ?: return chain.proceed(originalRequest)
 
-        // 1. Start with the Base URL from settings
         val newUrlBuilder = settingsUrl.newBuilder()
-        
-        // 2. Append original path segments (e.g., fs/list)
-        val originalSegments = originalUrl.pathSegments
-        for (segment in originalSegments) {
+
+        for (segment in originalUrl.pathSegments) {
             if (segment.isNotBlank()) {
                 newUrlBuilder.addPathSegment(segment)
             }
         }
-        
-        // 3. CRITICAL: Preserve ALL query parameters (like ?path=/home/mike)
-        // Without this, the server defaults to a fallback directory.
+
         newUrlBuilder.encodedQuery(originalUrl.encodedQuery)
 
         val newRequest = originalRequest.newBuilder()
             .url(newUrlBuilder.build())
-            .header("X-Secret", settings.apiToken)
+            .header("X-Secret", device.relaySecret)
             .build()
 
         return chain.proceed(newRequest)

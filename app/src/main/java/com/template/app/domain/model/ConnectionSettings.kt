@@ -4,9 +4,7 @@ enum class AppThemeMode {
     LIGHT, DARK, SYSTEM
 }
 
+/** App-wide preferences (not per-device). */
 data class ConnectionSettings(
-    val baseUrl: String = "",
-    val apiToken: String = "",
-    val onboardingComplete: Boolean = false,
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM
 )

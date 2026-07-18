@@ -22,11 +22,13 @@ captures/
 .cxx/
 
 # Gradle wrapper
-# (Optional: some prefer to ignore the .jar, but usually wrapper is tracked)
-# !gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.jar
 
-# Secrets
-# (Uncomment if you use them)
-# google-services.json
-# *.jks
-# *.keystore
+ google-services.json
+*.jks
+ *.keystore
+
+*.apk
+/build/
+*.sqlite
+production/

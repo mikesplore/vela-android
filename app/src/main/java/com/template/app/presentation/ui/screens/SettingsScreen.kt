@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,16 +17,89 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.template.app.domain.model.AppThemeMode
+import com.template.app.domain.model.PairedDevice
 import com.template.app.presentation.ui.components.SectionHeader
 import com.template.app.presentation.viewmodel.SettingsViewModel
 
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    onCredentialsCleared: () -> Unit = {}
+    onCredentialsCleared: () -> Unit = {},
+    onAddDevice: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
+    var showRemoveAllConfirm by remember { mutableStateOf(false) }
+    var removeTarget by remember { mutableStateOf<PairedDevice?>(null) }
+    var renameText by remember { mutableStateOf("") }
+
+    if (state.renameTargetId != null) {
+        val target = state.pairedDevices.find { it.id == state.renameTargetId }
+        LaunchedEffect(state.renameTargetId) {
+            renameText = target?.label.orEmpty()
+        }
+        AlertDialog(
+            onDismissRequest = { viewModel.setRenameTarget(null) },
+            title = { Text("Rename device") },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    singleLine = true,
+                    label = { Text("Label") }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        state.renameTargetId?.let { viewModel.renameDevice(it, renameText) }
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.setRenameTarget(null) }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showRemoveAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRemoveAllConfirm = false },
+            title = { Text("Remove all devices?") },
+            text = { Text("This clears all paired devices and local cache. You will need to pair again.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRemoveAllConfirm = false
+                        viewModel.removeAllDevices(onCredentialsCleared)
+                    }
+                ) { Text("Remove all") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveAllConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    removeTarget?.let { device ->
+        AlertDialog(
+            onDismissRequest = { removeTarget = null },
+            title = { Text("Remove ${device.displayName}?") },
+            text = { Text("Cached data and chat for this device will be deleted.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val id = device.id
+                        removeTarget = null
+                        viewModel.removeDevice(id, onCredentialsCleared)
+                    }
+                ) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(onClick = { removeTarget = null }) { Text("Cancel") }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -36,10 +108,36 @@ fun SettingsScreen(
             .verticalScroll(scrollState)
             .padding(20.dp)
     ) {
-        // --- HOST INFORMATION SECTION ---
+        SectionHeader(title = "DEVICES")
+        Spacer(modifier = Modifier.height(4.dp))
+
+        state.pairedDevices.forEach { device ->
+            DeviceRow(
+                device = device,
+                onSwitch = { viewModel.switchDevice(device.id) },
+                onRename = { viewModel.setRenameTarget(device.id) },
+                onRemove = { removeTarget = device }
+            )
+        }
+
+        TextButton(
+            onClick = onAddDevice,
+            modifier = Modifier.padding(top = 4.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Add device", fontSize = 13.sp)
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 22.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+
         SectionHeader(title = "HOST INFORMATION")
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         state.device?.let { device ->
             AboutRow(label = "Hostname", value = device.prettyHostname ?: "Unknown")
             AboutRow(label = "OS Distro", value = "${device.osDistro} ${device.osDistroVersion ?: ""}".trim())
@@ -61,10 +159,9 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.outlineVariant
         )
 
-        // --- APPEARANCE SECTION ---
         SectionHeader(title = "APPEARANCE")
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Column {
             ThemeOption(
                 label = "Light Mode",
@@ -89,7 +186,6 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.outlineVariant
         )
 
-        // --- ABOUT SECTION ---
         SectionHeader(title = "ABOUT")
         AboutRow(label = "App version", value = "1.4.2")
         AboutRow(label = "Agent version", value = state.agentVersion)
@@ -100,15 +196,17 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.outlineVariant
         )
 
-        // --- SESSION SECTION ---
         SectionHeader(title = "SESSION")
         Spacer(modifier = Modifier.height(14.dp))
-        
+
         Surface(
-            onClick = { viewModel.clearCredentials(onCredentialsCleared) },
+            onClick = { showRemoveAllConfirm = true },
             color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
             shape = RoundedCornerShape(10.dp),
-            border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.25f)),
+            border = androidx.compose.foundation.BorderStroke(
+                0.5.dp,
+                MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -117,23 +215,91 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.Logout,
+                    Icons.Default.DeleteForever,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    "Logout",
+                    "Remove all devices",
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(24.dp))
     }
+}
+
+@Composable
+private fun DeviceRow(
+    device: PairedDevice,
+    onSwitch: () -> Unit,
+    onRename: () -> Unit,
+    onRemove: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !device.isActive, onClick = onSwitch)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    device.displayName,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+                if (device.isActive) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Active",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Text(
+                device.hostname?.takeIf { it.isNotBlank() } ?: device.relayBaseUrl,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        IconButton(
+            onClick = onRename,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                Icons.Default.Edit,
+                contentDescription = "Rename",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "Remove",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
+            )
+        }
+    }
+    HorizontalDivider(
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    )
 }
 
 @Composable

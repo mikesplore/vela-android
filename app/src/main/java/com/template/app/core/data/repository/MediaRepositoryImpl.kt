@@ -4,6 +4,8 @@ import com.template.app.core.data.local.dao.VelaDao
 import com.template.app.core.data.local.entities.VelaMediaEntity
 import com.template.app.core.data.remote.api.VelaApiService
 import com.template.app.core.data.remote.dto.MediaSeekRequest
+import com.template.app.core.device.ActiveConnectionProvider
+import com.template.app.core.device.scopedNullable
 import com.template.app.core.utils.Resource
 import com.template.app.core.utils.safeApiCall
 import com.template.app.domain.model.VelaMediaState
@@ -16,13 +18,17 @@ import javax.inject.Singleton
 @Singleton
 class MediaRepositoryImpl @Inject constructor(
     private val apiService: VelaApiService,
-    private val velaDao: VelaDao
+    private val velaDao: VelaDao,
+    private val activeConnection: ActiveConnectionProvider,
 ) : MediaRepository {
 
     override fun observeMedia(): Flow<VelaMediaState?> =
-        velaDao.observeMedia().map { it?.toDomain() }
+        activeConnection.scopedNullable { id ->
+            velaDao.observeMedia(id).map { it?.toDomain() }
+        }
 
     override suspend fun getNowPlaying(): Resource<VelaMediaState?> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         apiService.getNowPlaying().let {
             val domain = VelaMediaState(
                 title = it.title,
@@ -33,7 +39,7 @@ class MediaRepositoryImpl @Inject constructor(
                 lengthSeconds = it.lengthSeconds,
                 artUrl = it.artUrl
             )
-            velaDao.upsertMedia(VelaMediaEntity.fromDomain(domain))
+            velaDao.upsertMedia(VelaMediaEntity.fromDomain(connectionId, domain))
             domain
         }
     }

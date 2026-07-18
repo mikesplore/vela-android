@@ -3,7 +3,9 @@ package com.template.app.core.di
 import android.content.Context
 import androidx.room.Room
 import com.template.app.core.data.local.AppDatabase
+import com.template.app.core.data.local.LegacyConnectionMigrator
 import com.template.app.core.data.local.dao.AssistantDao
+import com.template.app.core.data.local.dao.PairedDeviceDao
 import com.template.app.core.data.local.dao.SettingsDao
 import com.template.app.core.data.local.dao.UserDao
 import com.template.app.core.data.local.dao.VelaDao
@@ -20,14 +22,16 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+        LegacyConnectionMigrator.captureFromLegacyDb(context)
+        return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
             "app_database"
         )
-            .fallbackToDestructiveMigration(false)
+            .fallbackToDestructiveMigration(true)
             .build()
+    }
 
     @Provides
     @Singleton
@@ -36,6 +40,10 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideSettingsDao(db: AppDatabase): SettingsDao = db.settingsDao()
+
+    @Provides
+    @Singleton
+    fun providePairedDeviceDao(db: AppDatabase): PairedDeviceDao = db.pairedDeviceDao()
 
     @Provides
     @Singleton

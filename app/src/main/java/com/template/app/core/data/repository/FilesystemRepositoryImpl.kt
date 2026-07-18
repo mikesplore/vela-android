@@ -5,6 +5,8 @@ import com.template.app.core.data.local.entities.VelaDiskEntity
 import com.template.app.core.data.local.entities.VelaFileEntity
 import com.template.app.core.data.remote.api.VelaApiService
 import com.template.app.core.data.remote.dto.*
+import com.template.app.core.device.ActiveConnectionProvider
+import com.template.app.core.device.scoped
 import com.template.app.core.utils.Resource
 import com.template.app.core.utils.safeApiCall
 import com.template.app.domain.model.*
@@ -23,17 +25,23 @@ import kotlin.collections.map
 @Singleton
 class FilesystemRepositoryImpl @Inject constructor(
     private val apiService: VelaApiService,
-    private val velaDao: VelaDao
+    private val velaDao: VelaDao,
+    private val activeConnection: ActiveConnectionProvider,
 ) : FilesystemRepository {
 
     override fun observeFiles(path: String): Flow<List<VelaFileInfo>> =
-        velaDao.observeFiles(normalizePath(path)).map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeFiles(id, normalizePath(path)).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeDisks(): Flow<List<VelaDiskUsage>> =
-        velaDao.observeDisks().map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeDisks(id).map { list -> list.map { it.toDomain() } }
+        }
 
 
     override suspend fun listFiles(path: String?, showHidden: Boolean): Resource<VelaFileList> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val normalizedReqPath = normalizePath(path ?: "")
         val response = apiService.listFiles(normalizedReqPath, showHidden)
         val fileDomains = response.files?.map { it.toDomain() } ?: emptyList()
@@ -48,7 +56,7 @@ class FilesystemRepositoryImpl @Inject constructor(
             files = fileDomains
         )
 
-        velaDao.replaceFiles(currentPath, fileDomains.map { VelaFileEntity.fromDomain(it, currentPath) })
+        velaDao.replaceFiles(connectionId, currentPath, fileDomains.map { VelaFileEntity.fromDomain(connectionId, it, currentPath) })
         domain
     }
 
@@ -63,6 +71,7 @@ class FilesystemRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getDiskUsage(): Resource<List<VelaDiskUsage>> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val domains = apiService.getDiskUsage().usage?.map {
             VelaDiskUsage(
                 mountpoint = it.mountpoint ?: "",
@@ -72,7 +81,7 @@ class FilesystemRepositoryImpl @Inject constructor(
                 percent = it.percent ?: 0.0
             )
         } ?: emptyList()
-        velaDao.replaceDisks(domains.map { VelaDiskEntity.fromDomain(it) })
+        velaDao.replaceDisks(connectionId, domains.map { VelaDiskEntity.fromDomain(connectionId, it) })
         domains
     }
 

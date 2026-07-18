@@ -2,12 +2,15 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.data.local.LegacyConnectionRestorer
 import com.template.app.core.sync.DataSyncManager
 import com.template.app.core.utils.AppEventManager
 import com.template.app.domain.model.AppThemeMode
 import com.template.app.domain.model.VelaHealth
 import com.template.app.domain.repository.HealthRepository
 import com.template.app.domain.usecase.GetSettingsUseCase
+import com.template.app.domain.usecase.HasDevicesUseCase
+import com.template.app.domain.usecase.ObserveActiveDeviceUseCase
 import com.template.app.presentation.ui.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +25,9 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val getSettingsUseCase: GetSettingsUseCase,
+    private val hasDevicesUseCase: HasDevicesUseCase,
+    private val observeActiveDeviceUseCase: ObserveActiveDeviceUseCase,
+    private val legacyConnectionRestorer: LegacyConnectionRestorer,
     private val dataSyncManager: DataSyncManager,
     private val healthRepository: HealthRepository,
     val appEventManager: AppEventManager
@@ -38,22 +44,34 @@ class MainViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            getSettingsUseCase().collectLatest { settings ->
-                _themeMode.value = settings.themeMode
+            legacyConnectionRestorer.restoreIfNeeded()
 
-                // Check for both valid credentials AND onboarding completion
-                val canSync = settings.baseUrl.isNotBlank() &&
-                        settings.apiToken.isNotBlank()
+            val hasDevices = hasDevicesUseCase()
+            if (_startDestination.value == null) {
+                _startDestination.value = if (hasDevices) Routes.MAIN else Routes.ONBOARDING
+            }
 
-                if (_startDestination.value == null) {
-                    // Use onboardingComplete to determine start destination
-                    _startDestination.value = if (settings.onboardingComplete) Routes.MAIN else Routes.ONBOARDING
+            if (hasDevices) {
+                dataSyncManager.startSync()
+            }
+
+            launch {
+                getSettingsUseCase().collectLatest { settings ->
+                    _themeMode.value = settings.themeMode
                 }
+            }
 
-                if (canSync) {
-                    dataSyncManager.startSync()
-                } else {
-                    dataSyncManager.stopSync()
+            launch {
+                observeActiveDeviceUseCase().collectLatest { device ->
+                    if (device != null) {
+                        dataSyncManager.startSync()
+                    } else {
+                        dataSyncManager.stopSync()
+                        if (_startDestination.value == Routes.MAIN) {
+                            // All devices removed while on main — keep destination;
+                            // navigation is handled by Settings/remove callbacks.
+                        }
+                    }
                 }
             }
         }

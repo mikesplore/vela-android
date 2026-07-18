@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.template.app.core.data.local.dao.AssistantDao
+import com.template.app.core.data.local.dao.PairedDeviceDao
 import com.template.app.core.data.local.dao.SettingsDao
 import com.template.app.core.data.local.dao.UserDao
 import com.template.app.core.data.local.dao.VelaDao
@@ -15,12 +16,13 @@ import com.template.app.core.data.local.entities.*
  *   2. Create a Dao interface in /dao
  *   3. Add the entity to the `entities` array below
  *   4. Add the dao as an abstract function below
- *   5. Bump `version` and add a Migration in DatabaseModule
+ *   5. Bump `version` (destructive migration captures legacy pair via LegacyConnectionMigrator)
  */
 @Database(
     entities = [
         UserEntity::class,
         SettingsEntity::class,
+        PairedDeviceEntity::class,
         VelaHealthEntity::class,
         VelaDeviceEntity::class,
         VelaNetworkEntity::class,
@@ -54,13 +56,14 @@ import com.template.app.core.data.local.entities.*
         VelaUptimeEntity::class,
         NetUsageEntity::class
     ],
-    version = 25,
+    version = 26,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun settingsDao(): SettingsDao
+    abstract fun pairedDeviceDao(): PairedDeviceDao
     abstract fun velaDao(): VelaDao
     abstract fun assistantDao(): AssistantDao
 }

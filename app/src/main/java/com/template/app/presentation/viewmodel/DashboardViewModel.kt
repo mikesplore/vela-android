@@ -15,6 +15,9 @@ import com.template.app.domain.repository.MediaRepository
 import com.template.app.domain.repository.MonitorRepository
 import com.template.app.domain.repository.NetworkRepository
 import com.template.app.domain.repository.ProcessesRepository
+import com.template.app.domain.usecase.ObserveActiveDeviceUseCase
+import com.template.app.domain.usecase.ObserveDevicesUseCase
+import com.template.app.domain.usecase.SwitchDeviceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -42,7 +45,9 @@ data class DashboardState(
     val clipboardText: String = "",
     val error: String? = null,
     val isScreenshotLoading: Boolean = false,
-    val screenshot: Bitmap? = null
+    val screenshot: Bitmap? = null,
+    val activeDevice: PairedDevice? = null,
+    val pairedDevices: List<PairedDevice> = emptyList()
 )
 
 @HiltViewModel
@@ -55,6 +60,9 @@ class DashboardViewModel @Inject constructor(
     private val fileRepository: FilesystemRepository,
     private val healthRepository: HealthRepository,
     private val networkRepository: NetworkRepository,
+    private val observeDevicesUseCase: ObserveDevicesUseCase,
+    private val observeActiveDeviceUseCase: ObserveActiveDeviceUseCase,
+    private val switchDeviceUseCase: SwitchDeviceUseCase,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 
@@ -71,8 +79,24 @@ class DashboardViewModel @Inject constructor(
         appEventManager.setDashboardFabVisible(visible)
     }
 
+    fun switchDevice(id: Long) {
+        viewModelScope.launch {
+            runCatching { switchDeviceUseCase(id) }
+                .onSuccess { appEventManager.showActionSuccessSnackbar("Switched device") }
+                .onFailure { appEventManager.showActionErrorSnackbar(it.message ?: "Switch failed") }
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeData() {
+        observeActiveDeviceUseCase()
+            .onEach { device -> _state.update { it.copy(activeDevice = device) } }
+            .launchIn(viewModelScope)
+
+        observeDevicesUseCase()
+            .onEach { devices -> _state.update { it.copy(pairedDevices = devices) } }
+            .launchIn(viewModelScope)
+
         healthRepository.observeHealth()
             .onEach { health -> 
                 _state.update { it.copy(

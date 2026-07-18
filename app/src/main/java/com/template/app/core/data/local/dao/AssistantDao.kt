@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AssistantDao {
-    @Query("SELECT * FROM assistant_messages ORDER BY timestamp ASC")
-    fun observeMessages(): Flow<List<AssistantMessageEntity>>
+    @Query("SELECT * FROM assistant_messages WHERE connectionId = :connectionId ORDER BY timestamp ASC")
+    fun observeMessages(connectionId: Long): Flow<List<AssistantMessageEntity>>
 
     @Upsert
     suspend fun upsertMessage(message: AssistantMessageEntity)
@@ -17,6 +17,6 @@ interface AssistantDao {
     @Upsert
     suspend fun upsertMessages(messages: List<AssistantMessageEntity>)
 
-    @Query("DELETE FROM assistant_messages")
-    suspend fun clearChat()
+    @Query("DELETE FROM assistant_messages WHERE connectionId = :connectionId")
+    suspend fun clearChat(connectionId: Long)
 }

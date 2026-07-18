@@ -1,7 +1,7 @@
 package com.template.app.core.sync
 
 import android.util.Log
-import com.template.app.core.utils.AppEventManager
+import com.template.app.core.device.ActiveConnectionProvider
 import com.template.app.domain.repository.AudioRepository
 import com.template.app.domain.repository.ClipboardRepository
 import com.template.app.domain.repository.DisplayRepository
@@ -14,15 +14,15 @@ import com.template.app.domain.repository.PowerRepository
 import com.template.app.domain.repository.ProcessesRepository
 import com.template.app.domain.repository.SchedulesRepository
 import com.template.app.domain.repository.UserRepository
-import com.template.app.domain.usecase.ClearSettingsUseCase
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DataSyncManager @Inject constructor(
+    private val activeConnection: ActiveConnectionProvider,
     private val userRepository: UserRepository,
     private val processRepository: ProcessesRepository,
     private val monitorRepository: MonitorRepository,
@@ -38,23 +38,45 @@ class DataSyncManager @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var syncJob: Job? = null
+    private var watchJob: Job? = null
 
     fun startSync() {
-        if (syncJob?.isActive == true) return
+        if (watchJob?.isActive == true) return
 
+        watchJob = scope.launch {
+            activeConnection.connectionId
+                .collectLatest { connectionId ->
+                    healthRepository.clearInMemoryCaches()
+                    stopSyncLoop()
+                    if (connectionId != null) {
+                        startSyncLoop()
+                    }
+                }
+        }
+    }
+
+    private fun startSyncLoop() {
+        if (syncJob?.isActive == true) return
+        if (activeConnection.current() == null) return
         syncJob = scope.launch {
             while (isActive) {
                 performSyncCycle()
-                delay(10_000) // 10 seconds
+                delay(10_000)
             }
         }
     }
 
+    private fun stopSyncLoop() {
+        syncJob?.cancel()
+        syncJob = null
+    }
+
     suspend fun performSyncCycle() {
+        if (activeConnection.current() == null) return
 
         try {
             Log.d("DataSyncManager", "Starting data sync cycle...")
-            
+
             coroutineScope {
                 val tasks = listOf(
                     launch { userRepository.fetchUsers() },
@@ -71,13 +93,11 @@ class DataSyncManager @Inject constructor(
                     launch { processRepository.getActiveWindow() },
                     launch { displayRepository.getResolution() },
                     launch { audioRepository.getAudioDevices() },
-                    launch { processRepository.getProcesses() },
                     launch { networkRepository.getBluetoothDevices() },
                     launch { schedulerRepository.getScheduledTasks() },
                     launch { powerRepository.getPowerProfile() },
                     launch { clipboardRepository.readClipboard() },
-                    launch { monitorRepository.getUptime()}
-
+                    launch { monitorRepository.getUptime() }
                 )
                 tasks.joinAll()
             }
@@ -89,6 +109,14 @@ class DataSyncManager @Inject constructor(
     }
 
     fun stopSync() {
-        syncJob?.cancel()
+        watchJob?.cancel()
+        watchJob = null
+        stopSyncLoop()
+    }
+
+    fun restartSync() {
+        stopSync()
+        healthRepository.clearInMemoryCaches()
+        startSync()
     }
 }

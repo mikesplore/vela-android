@@ -4,6 +4,9 @@ import com.template.app.core.data.local.dao.VelaDao
 import com.template.app.core.data.local.entities.*
 import com.template.app.core.data.remote.api.VelaApiService
 import com.template.app.core.data.remote.dto.ProcessItem
+import com.template.app.core.device.ActiveConnectionProvider
+import com.template.app.core.device.scoped
+import com.template.app.core.device.scopedNullable
 import com.template.app.core.utils.Resource
 import com.template.app.core.utils.safeApiCall
 import com.template.app.domain.model.*
@@ -16,46 +19,72 @@ import javax.inject.Singleton
 @Singleton
 class MonitorRepositoryImpl @Inject constructor(
     private val apiService: VelaApiService,
-    private val velaDao: VelaDao
+    private val velaDao: VelaDao,
+    private val activeConnection: ActiveConnectionProvider,
 ) : MonitorRepository {
 
     override fun observeCpuUsage(): Flow<VelaCpuUsage?> =
-        velaDao.observeCpuUsage().map { it?.toDomain() }
+        activeConnection.scopedNullable { id ->
+            velaDao.observeCpuUsage(id).map { it?.toDomain() }
+        }
 
     override fun observeRamUsage(): Flow<VelaRamUsage?> =
-        velaDao.observeRamUsage().map { it?.toDomain() }
+        activeConnection.scopedNullable { id ->
+            velaDao.observeRamUsage(id).map { it?.toDomain() }
+        }
 
     override fun observeGpuUsage(): Flow<List<VelaGpuUsage>> =
-        velaDao.observeGpuUsage().map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeGpuUsage(id).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeDiskIo(): Flow<List<VelaDiskIo>> =
-        velaDao.observeDiskIo().map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeDiskIo(id).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeNetworkIo(): Flow<List<VelaNetworkIo>> =
-        velaDao.observeNetworkIo().map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeNetworkIo(id).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeTemperatures(): Flow<List<VelaTemperatureInfo>> =
-        velaDao.observeTemperatures().map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeTemperatures(id).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeFans(): Flow<List<VelaFanInfo>> =
-        velaDao.observeFans().map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeFans(id).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeSensors(): Flow<List<VelaSensorInfo>> =
-        velaDao.observeSensors().map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeSensors(id).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeBattery(): Flow<VelaBatteryStatus?> =
-        velaDao.observeBattery().map { it?.toDomain() }
+        activeConnection.scopedNullable { id ->
+            velaDao.observeBattery(id).map { it?.toDomain() }
+        }
 
     override fun observeTopProcessesByCpu(limit: Int): Flow<List<VelaProcess>> =
-        velaDao.observeProcesses(limit).map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeProcesses(id, limit).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeTopProcessesByMemory(limit: Int): Flow<List<VelaProcess>> =
-        velaDao.observeProcessesByMemory(limit).map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeProcessesByMemory(id, limit).map { list -> list.map { it.toDomain() } }
+        }
 
     override fun observeUptime(): Flow<VelaUptime?> =
-        velaDao.observeUptime().map { it?.toDomain() }
+        activeConnection.scopedNullable { id ->
+            velaDao.observeUptime(id).map { it?.toDomain() }
+        }
 
     override suspend fun getUptime(): Resource<VelaUptime> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.getUptime()
         val domain = VelaUptime(
             seconds = res.seconds,
@@ -67,18 +96,20 @@ class MonitorRepositoryImpl @Inject constructor(
             years = res.years,
             formatted = res.formatted
         )
-        velaDao.upsertUptime(VelaUptimeEntity.fromDomain(domain))
+        velaDao.upsertUptime(VelaUptimeEntity.fromDomain(connectionId, domain))
         domain
     }
 
     override suspend fun getCpuUsage(): Resource<VelaCpuUsage> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.getMonitorCpu()
         val domain = VelaCpuUsage(res.overall ?: 0.0, res.perCore ?: emptyList())
-        velaDao.upsertCpuUsage(VelaCpuUsageEntity.fromDomain(domain))
+        velaDao.upsertCpuUsage(VelaCpuUsageEntity.fromDomain(connectionId, domain))
         domain
     }
 
     override suspend fun getRamUsage(): Resource<VelaRamUsage> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.getMonitorRam()
         val domain = VelaRamUsage(
             total = res.total ?: 0,
@@ -90,11 +121,12 @@ class MonitorRepositoryImpl @Inject constructor(
             swapFree = res.swapFree ?: 0,
             swapPercent = res.swapPercent ?: 0.0
         )
-        velaDao.upsertRamUsage(VelaRamUsageEntity.fromDomain(domain))
+        velaDao.upsertRamUsage(VelaRamUsageEntity.fromDomain(connectionId, domain))
         domain
     }
 
     override suspend fun getMonitorSnapshot(): Resource<VelaMonitorSnapshot> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.getMonitorSnapshot()
 
         val cpuDomain = VelaCpuUsage(res.cpu?.overall ?: 0.0, res.cpu?.perCore ?: emptyList())
@@ -150,23 +182,25 @@ class MonitorRepositoryImpl @Inject constructor(
         val memProcDomains = res.processes?.topByMemory?.map { it.toDomain() } ?: emptyList()
 
         // Sync to Room
-        velaDao.upsertCpuUsage(VelaCpuUsageEntity.fromDomain(cpuDomain))
-        velaDao.upsertRamUsage(VelaRamUsageEntity.fromDomain(ramDomain))
-        velaDao.replaceGpuUsage(gpuDomains.map { VelaGpuUsageEntity.fromDomain(it) })
-        velaDao.replaceDiskIo(diskIoDomains.map { VelaDiskIoEntity.fromDomain(it) })
-        velaDao.replaceNetworkIo(networkIoDomains.map { VelaNetworkIoEntity.fromDomain(it) })
-        velaDao.replaceTemperatures(tempDomains.map { VelaTemperatureEntity.fromDomain(it) })
-        velaDao.replaceFans(fanDomains.map { VelaFanEntity.fromDomain(it) })
+        velaDao.upsertCpuUsage(VelaCpuUsageEntity.fromDomain(connectionId, cpuDomain))
+        velaDao.upsertRamUsage(VelaRamUsageEntity.fromDomain(connectionId, ramDomain))
+        velaDao.replaceGpuUsage(connectionId, gpuDomains.map { VelaGpuUsageEntity.fromDomain(connectionId, it) })
+        velaDao.replaceDiskIo(connectionId, diskIoDomains.map { VelaDiskIoEntity.fromDomain(connectionId, it) })
+        velaDao.replaceNetworkIo(connectionId, networkIoDomains.map { VelaNetworkIoEntity.fromDomain(connectionId, it) })
+        velaDao.replaceTemperatures(connectionId, tempDomains.map { VelaTemperatureEntity.fromDomain(connectionId, it) })
+        velaDao.replaceFans(connectionId, fanDomains.map { VelaFanEntity.fromDomain(connectionId, it) })
 
-        if (batteryDomain != null) velaDao.upsertBattery(VelaBatteryEntity.fromDomain(batteryDomain))
-        velaDao.replaceCpuProcesses(cpuProcDomains.map {
+        if (batteryDomain != null) velaDao.upsertBattery(VelaBatteryEntity.fromDomain(connectionId, batteryDomain))
+        velaDao.replaceCpuProcesses(connectionId, cpuProcDomains.map {
             VelaProcessEntity.fromDomain(
+                connectionId,
                 it,
                 isTopByMemory = false
             )
         })
-        velaDao.replaceMemoryProcesses(memProcDomains.map {
+        velaDao.replaceMemoryProcesses(connectionId, memProcDomains.map {
             VelaProcessEntity.fromDomain(
+                connectionId,
                 it,
                 isTopByMemory = true
             )

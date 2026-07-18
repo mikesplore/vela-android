@@ -11,4 +11,6 @@ interface HealthRepository {
 
     suspend fun getDevice(): Resource<VelaDevice>
     fun observeDevice(): Flow<VelaDevice?>
+
+    fun clearInMemoryCaches()
 }

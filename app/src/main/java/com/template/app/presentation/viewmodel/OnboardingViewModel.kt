@@ -1,30 +1,21 @@
 package com.template.app.presentation.viewmodel
 
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
-import com.template.app.domain.repository.ConfigRepository
-import com.template.app.domain.repository.PairingRepository
-import com.template.app.domain.usecase.CompleteOnboardingUseCase
-import com.template.app.domain.usecase.GetSettingsUseCase
-import com.template.app.domain.usecase.SaveSettingsUseCase
+import com.template.app.domain.usecase.PairDeviceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import javax.inject.Inject
-import androidx.core.net.toUri
-import kotlinx.coroutines.delay
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
-    private val getSettingsUseCase: GetSettingsUseCase,
-    private val saveSettingsUseCase: SaveSettingsUseCase,
-    private val completeOnboardingUseCase: CompleteOnboardingUseCase,
-    private val configRepository: ConfigRepository,
-    private val pairingRepository: PairingRepository,
+    private val pairDeviceUseCase: PairDeviceUseCase,
     private val appEventManager: AppEventManager,
 ) : ViewModel() {
 
@@ -49,6 +40,9 @@ class OnboardingViewModel @Inject constructor(
     private val _username = MutableStateFlow<String?>(null)
     val username = _username.asStateFlow()
 
+    private val _pairingComplete = MutableStateFlow(false)
+    val pairingComplete = _pairingComplete.asStateFlow()
+
     sealed interface TestResult {
         object Idle : TestResult
         data class Testing(val message: String) : TestResult
@@ -56,24 +50,10 @@ class OnboardingViewModel @Inject constructor(
         data class Error(val message: String) : TestResult
     }
 
-    init {
-        viewModelScope.launch {
-            // CRITICAL: Clear credentials on initialization of Onboarding.
-            // This ensures no stale relay secrets or URLs interfere with new pairing attempts.
-            saveSettingsUseCase("", "")
-
-            getSettingsUseCase().collect { settings ->
-                _baseUrl.value = settings.baseUrl
-            }
-        }
-    }
-
     fun nextPage() {
         if (_currentPage.value < 3) {
             val next = _currentPage.value + 1
             _currentPage.value = next
-            // Only reset inputs if we are moving between early steps.
-            // When moving to step 3 (Greeting), we must preserve the username.
             if (next < 3) {
                 resetPairingInputs()
             }
@@ -124,13 +104,12 @@ class OnboardingViewModel @Inject constructor(
                 _baseUrl.value = vpsUrl
                 _pairingCode.value = code
                 _pairingPin.value = pin
-                
+
                 val pairUrl = if (vpsUrl.endsWith("/")) "${vpsUrl}pair/complete" else "$vpsUrl/pair/complete"
-                completePairing(pairUrl, code, pin)
+                completePairing(pairUrl, code, pin, vpsUrl)
                 return
             }
-        } catch (e: Exception) {
-            // Not a JSON or missing fields
+        } catch (_: Exception) {
         }
 
         try {
@@ -140,11 +119,10 @@ class OnboardingViewModel @Inject constructor(
                 val pin = uri.getQueryParameter("pin")
                 if (code != null && pin != null) {
                     val fallbackPairUrl = "https://vela.mikesplore.tech/pair/complete"
-                    completePairing(fallbackPairUrl, code, pin)
+                    completePairing(fallbackPairUrl, code, pin, "https://vela.mikesplore.tech")
                 }
             }
-        } catch (e: Exception) {
-            // Invalid URI
+        } catch (_: Exception) {
         }
     }
 
@@ -159,62 +137,19 @@ class OnboardingViewModel @Inject constructor(
         }
 
         val pairUrl = if (url.endsWith("/")) "${url}pair/complete" else "$url/pair/complete"
-        completePairing(pairUrl, code, pin)
+        completePairing(pairUrl, code, pin, url)
     }
 
-    private fun completePairing(pairUrl: String, code: String, pin: String) {
+    private fun completePairing(pairUrl: String, code: String, pin: String, vpsUrl: String?) {
         viewModelScope.launch {
             appEventManager.setLoading(true)
             _testState.value = TestResult.Testing("Pairing with relay...")
-            when (val result = pairingRepository.completePairing(pairUrl, code, pin)) {
+            when (val result = pairDeviceUseCase(pairUrl, code, pin, vpsUrl = vpsUrl)) {
                 is Resource.Success -> {
-                    val data = result.data
-
-                    // SAVE relay_secret as apiToken for future requests
-                    saveSettingsUseCase(data.relayBaseUrl, data.relaySecret)
-                    
-                    _testState.value = TestResult.Testing("Paired! Waiting for agent to be ready...")
-
-                    // Wait for relay_ready to be true before fetching config
-                    val statusUrl = if (pairUrl.endsWith("/pair/complete")) {
-                        pairUrl.replace("/pair/complete", "/agents/register/status")
-                    } else if (pairUrl.contains("/pair/complete")) {
-                        pairUrl.replace("/pair/complete", "/agents/register/status")
-                    } else {
-                        // Fallback: try to construct it from the base URL if we can't find /pair/complete
-                        pairUrl.substringBeforeLast("/") + "/status"
-                    }
-
-                    var isRelayReady = false
-                    // Polling for relay_ready for up to 15 seconds (10 attempts * 1.5s)
-                    for (i in 1..10) {
-                        val statusResult = pairingRepository.getRegistrationStatus(statusUrl, data.agentId)
-                        if (statusResult is Resource.Success && statusResult.data.relayReady) {
-                            isRelayReady = true
-                            break
-                        }
-                        delay(1500)
-                    }
-
-                    if (isRelayReady) {
-                        _testState.value = TestResult.Testing("Agent ready. Finalizing setup...")
-                        // After saving and waiting, verify config to get username
-                        when (val configResult = configRepository.getConfig()) {
-                            is Resource.Success -> {
-                                _username.value = configResult.data.username
-                                _testState.value = TestResult.Success(configResult.data.username)
-                            }
-                            is Resource.Error -> {
-                                _testState.value = TestResult.Error(configResult.message)
-                                appEventManager.showActionErrorSnackbar(configResult.message)
-                            }
-                            else -> {}
-                        }
-                    } else {
-                        val errorMsg = "Relay is not ready yet. Please ensure your agent is running."
-                        _testState.value = TestResult.Error(errorMsg)
-                        appEventManager.showActionErrorSnackbar(errorMsg)
-                    }
+                    val username = result.data.username ?: "user"
+                    _username.value = username
+                    _testState.value = TestResult.Success(username)
+                    _pairingComplete.value = true
                 }
                 is Resource.Error -> {
                     _testState.value = TestResult.Error(result.message)
@@ -227,10 +162,7 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun finishOnboarding() {
-        viewModelScope.launch {
-            appEventManager.setLoading(true)
-            completeOnboardingUseCase()
-            appEventManager.setLoading(false)
-        }
+        // Device already persisted and active via PairDeviceUseCase
+        _pairingComplete.value = true
     }
 }

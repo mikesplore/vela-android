@@ -14,6 +14,7 @@ import com.template.app.presentation.ui.screens.onboarding.OnboardingScreen
 object Routes {
     const val ONBOARDING = "onboarding"
     const val MAIN = "main" // Container for the 5-tab UI
+    const val ADD_DEVICE = "add_device"
 
     // Primary Tabs
     const val DASHBOARD = "dashboard"
@@ -67,7 +68,17 @@ fun AppNavHost(
                     navController.navigate(Routes.ONBOARDING) {
                         popUpTo(Routes.MAIN) { inclusive = true }
                     }
+                },
+                onAddDevice = {
+                    navController.navigate(Routes.ADD_DEVICE)
                 }
+            )
+        }
+
+        composable(Routes.ADD_DEVICE) {
+            AddDeviceScreen(
+                onDone = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
 

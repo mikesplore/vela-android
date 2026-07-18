@@ -10,453 +10,520 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface VelaDao {
 
-    @Query("SELECT * FROM vela_health WHERE id = 0")
-    fun observeHealth(): Flow<VelaHealthEntity?>
+    @Query("SELECT * FROM vela_health WHERE connectionId = :connectionId")
+    fun observeHealth(connectionId: Long): Flow<VelaHealthEntity?>
 
     @Upsert
     suspend fun upsertHealth(health: VelaHealthEntity)
 
-    @Query("DELETE FROM vela_health")
-    suspend fun clearHealth()
+    @Query("DELETE FROM vela_health WHERE connectionId = :connectionId")
+    suspend fun clearHealth(connectionId: Long)
 
-    @Query("SELECT * FROM vela_uptime WHERE id = 0")
-    fun observeUptime(): Flow<VelaUptimeEntity?>
+    @Query("SELECT * FROM vela_uptime WHERE connectionId = :connectionId")
+    fun observeUptime(connectionId: Long): Flow<VelaUptimeEntity?>
 
     @Upsert
     suspend fun upsertUptime(uptime: VelaUptimeEntity)
 
-    @Query("SELECT * FROM NetUsageEntity WHERE id = 0")
-    fun observeNetUsage(): Flow<NetUsageEntity?>
+    @Query("SELECT * FROM NetUsageEntity WHERE connectionId = :connectionId")
+    fun observeNetUsage(connectionId: Long): Flow<NetUsageEntity?>
 
     @Upsert
     suspend fun upsertNetUsage(netUsage: NetUsageEntity)
 
-    @Query("SELECT * FROM vela_device WHERE id = 0")
-    fun observeDevice(): Flow<VelaDeviceEntity?>
+    @Query("SELECT * FROM vela_device WHERE connectionId = :connectionId")
+    fun observeDevice(connectionId: Long): Flow<VelaDeviceEntity?>
 
     @Upsert
     suspend fun upsertDevice(device: VelaDeviceEntity)
 
-    @Query("DELETE FROM vela_device")
-    suspend fun clearDevice()
+    @Query("DELETE FROM vela_device WHERE connectionId = :connectionId")
+    suspend fun clearDevice(connectionId: Long)
 
-    @Query("SELECT * FROM vela_network WHERE id = 0")
-    fun observeNetwork(): Flow<VelaNetworkEntity?>
+    @Query("SELECT * FROM vela_network WHERE connectionId = :connectionId")
+    fun observeNetwork(connectionId: Long): Flow<VelaNetworkEntity?>
 
     @Upsert
     suspend fun upsertNetwork(network: VelaNetworkEntity)
 
-    @Query("DELETE FROM vela_network")
-    fun clearNetwork()
+    @Query("DELETE FROM vela_network WHERE connectionId = :connectionId")
+    suspend fun clearNetwork(connectionId: Long)
 
-    @Query("SELECT * FROM vela_audio WHERE id = 0")
-    fun observeAudio(): Flow<VelaAudioEntity?>
+    @Query("SELECT * FROM vela_audio WHERE connectionId = :connectionId")
+    fun observeAudio(connectionId: Long): Flow<VelaAudioEntity?>
 
     @Upsert
     suspend fun upsertAudio(audio: VelaAudioEntity)
 
-    @Query("SELECT * FROM vela_audio_devices")
-    fun observeAudioDevices(): Flow<List<VelaAudioDeviceEntity>>
+    @Query("SELECT * FROM vela_audio_devices WHERE connectionId = :connectionId")
+    fun observeAudioDevices(connectionId: Long): Flow<List<VelaAudioDeviceEntity>>
 
     @Upsert
     suspend fun upsertAudioDevices(devices: List<VelaAudioDeviceEntity>)
 
-    @Query("DELETE FROM vela_audio_devices")
-    suspend fun clearAudioDevices()
+    @Query("DELETE FROM vela_audio_devices WHERE connectionId = :connectionId")
+    suspend fun clearAudioDevices(connectionId: Long)
 
-    @Query("DELETE FROM vela_audio_devices WHERE id NOT IN (:ids)")
-    suspend fun deleteAudioDevicesExcept(ids: List<String>)
+    @Query("DELETE FROM vela_audio_devices WHERE connectionId = :connectionId AND id NOT IN (:ids)")
+    suspend fun deleteAudioDevicesExcept(connectionId: Long, ids: List<String>)
 
     @Transaction
-    suspend fun replaceAudioDevices(devices: List<VelaAudioDeviceEntity>) {
+    suspend fun replaceAudioDevices(connectionId: Long, devices: List<VelaAudioDeviceEntity>) {
         if (devices.isEmpty()) {
-            clearAudioDevices()
+            clearAudioDevices(connectionId)
         } else {
             upsertAudioDevices(devices)
-            deleteAudioDevicesExcept(devices.map { it.id })
+            deleteAudioDevicesExcept(connectionId, devices.map { it.id })
         }
     }
 
-    @Query("SELECT * FROM vela_media WHERE id = 0")
-    fun observeMedia(): Flow<VelaMediaEntity?>
+    @Query("SELECT * FROM vela_media WHERE connectionId = :connectionId")
+    fun observeMedia(connectionId: Long): Flow<VelaMediaEntity?>
 
     @Upsert
     suspend fun upsertMedia(media: VelaMediaEntity)
 
-    @Query("SELECT * FROM vela_processes WHERE isTopByMemory = 0 ORDER BY cpu DESC LIMIT :limit")
-    fun observeProcesses(limit: Int): Flow<List<VelaProcessEntity>>
+    @Query("SELECT * FROM vela_processes WHERE connectionId = :connectionId AND isTopByMemory = 0 ORDER BY cpu DESC LIMIT :limit")
+    fun observeProcesses(connectionId: Long, limit: Int): Flow<List<VelaProcessEntity>>
 
-    @Query("SELECT * FROM vela_processes WHERE isTopByMemory = 1 ORDER BY mem DESC LIMIT :limit")
-    fun observeProcessesByMemory(limit: Int): Flow<List<VelaProcessEntity>>
+    @Query("SELECT * FROM vela_processes WHERE connectionId = :connectionId AND isTopByMemory = 1 ORDER BY mem DESC LIMIT :limit")
+    fun observeProcessesByMemory(connectionId: Long, limit: Int): Flow<List<VelaProcessEntity>>
 
     @Upsert
     suspend fun upsertProcesses(processes: List<VelaProcessEntity>)
 
-    @Query("DELETE FROM vela_processes")
-    suspend fun clearProcesses()
+    @Query("DELETE FROM vela_processes WHERE connectionId = :connectionId")
+    suspend fun clearProcesses(connectionId: Long)
 
-    @Query("DELETE FROM vela_processes WHERE isTopByMemory = 0")
-    suspend fun clearCpuProcesses()
+    @Query("DELETE FROM vela_processes WHERE connectionId = :connectionId AND isTopByMemory = 0")
+    suspend fun clearCpuProcesses(connectionId: Long)
 
-    @Query("DELETE FROM vela_processes WHERE isTopByMemory = 1")
-    suspend fun clearMemoryProcesses()
-
-    @Query("DELETE FROM vela_processes WHERE isTopByMemory = 0 AND id NOT IN (:ids)")
-    suspend fun deleteCpuProcessesExcept(ids: List<String>)
-
-    @Query("DELETE FROM vela_processes WHERE isTopByMemory = 1 AND id NOT IN (:ids)")
-    suspend fun deleteMemoryProcessesExcept(ids: List<String>)
+    @Query("DELETE FROM vela_processes WHERE connectionId = :connectionId AND isTopByMemory = 1")
+    suspend fun clearMemoryProcesses(connectionId: Long)
 
     @Transaction
-    suspend fun replaceCpuProcesses(processes: List<VelaProcessEntity>) {
-        clearCpuProcesses()
-        if (processes.isNotEmpty()) {
-            upsertProcesses(processes)
-        }
-    }
-
-
-    @Transaction
-    suspend fun replaceMemoryProcesses(processes: List<VelaProcessEntity>) {
-        clearMemoryProcesses()
-        if (processes.isNotEmpty()) {
-            upsertProcesses(processes)
-        }
+    suspend fun replaceCpuProcesses(connectionId: Long, processes: List<VelaProcessEntity>) {
+        clearCpuProcesses(connectionId)
+        if (processes.isNotEmpty()) upsertProcesses(processes)
     }
 
     @Transaction
-    suspend fun replaceProcesses(processes: List<VelaProcessEntity>) {
+    suspend fun replaceMemoryProcesses(connectionId: Long, processes: List<VelaProcessEntity>) {
+        clearMemoryProcesses(connectionId)
+        if (processes.isNotEmpty()) upsertProcesses(processes)
+    }
+
+    @Transaction
+    suspend fun replaceProcesses(connectionId: Long, processes: List<VelaProcessEntity>) {
         if (processes.isEmpty()) {
-            clearProcesses()
+            clearProcesses(connectionId)
         } else {
             upsertProcesses(processes)
-
         }
     }
 
-    @Query("SELECT * FROM vela_disks")
-    fun observeDisks(): Flow<List<VelaDiskEntity>>
+    @Query("SELECT * FROM vela_disks WHERE connectionId = :connectionId")
+    fun observeDisks(connectionId: Long): Flow<List<VelaDiskEntity>>
 
     @Upsert
     suspend fun upsertDisks(disks: List<VelaDiskEntity>)
 
-    @Query("DELETE FROM vela_disks")
-    suspend fun clearDisks()
+    @Query("DELETE FROM vela_disks WHERE connectionId = :connectionId")
+    suspend fun clearDisks(connectionId: Long)
 
-    @Query("DELETE FROM vela_disks WHERE mountpoint NOT IN (:mountpoints)")
-    suspend fun deleteDisksExcept(mountpoints: List<String>)
+    @Query("DELETE FROM vela_disks WHERE connectionId = :connectionId AND mountpoint NOT IN (:mountpoints)")
+    suspend fun deleteDisksExcept(connectionId: Long, mountpoints: List<String>)
 
     @Transaction
-    suspend fun replaceDisks(disks: List<VelaDiskEntity>) {
+    suspend fun replaceDisks(connectionId: Long, disks: List<VelaDiskEntity>) {
         if (disks.isEmpty()) {
-            clearDisks()
+            clearDisks(connectionId)
         } else {
             upsertDisks(disks)
-            deleteDisksExcept(disks.map { it.mountpoint })
+            deleteDisksExcept(connectionId, disks.map { it.mountpoint })
         }
     }
 
-    @Query("SELECT * FROM vela_notifications ORDER BY timestamp DESC")
-    fun observeNotifications(): Flow<List<VelaNotificationEntity>>
+    @Query("SELECT * FROM vela_notifications WHERE connectionId = :connectionId ORDER BY timestamp DESC")
+    fun observeNotifications(connectionId: Long): Flow<List<VelaNotificationEntity>>
 
     @Upsert
     suspend fun upsertNotifications(notifications: List<VelaNotificationEntity>)
 
-    @Query("DELETE FROM vela_notifications")
-    suspend fun clearNotifications()
+    @Query("DELETE FROM vela_notifications WHERE connectionId = :connectionId")
+    suspend fun clearNotifications(connectionId: Long)
 
-    @Query("DELETE FROM vela_notifications WHERE id NOT IN (:ids)")
-    suspend fun deleteNotificationsExcept(ids: List<String>)
+    @Query("DELETE FROM vela_notifications WHERE connectionId = :connectionId AND id NOT IN (:ids)")
+    suspend fun deleteNotificationsExcept(connectionId: Long, ids: List<String>)
 
     @Transaction
-    suspend fun replaceNotifications(notifications: List<VelaNotificationEntity>) {
+    suspend fun replaceNotifications(connectionId: Long, notifications: List<VelaNotificationEntity>) {
         if (notifications.isEmpty()) {
-            clearNotifications()
+            clearNotifications(connectionId)
         } else {
             upsertNotifications(notifications)
-            deleteNotificationsExcept(notifications.map { it.id })
+            deleteNotificationsExcept(connectionId, notifications.map { it.id })
         }
     }
 
-    // --- Network / Wifi / Bluetooth ---
-
-    @Query("SELECT * FROM vela_wifi WHERE id = 0")
-    fun observeWifi(): Flow<VelaWifiEntity?>
+    @Query("SELECT * FROM vela_wifi WHERE connectionId = :connectionId")
+    fun observeWifi(connectionId: Long): Flow<VelaWifiEntity?>
 
     @Upsert
     suspend fun upsertWifi(wifi: VelaWifiEntity)
 
-    @Query("SELECT * FROM vela_wifi_networks")
-    fun observeWifiNetworks(): Flow<List<VelaWifiNetworkEntity>>
+    @Query("SELECT * FROM vela_wifi_networks WHERE connectionId = :connectionId")
+    fun observeWifiNetworks(connectionId: Long): Flow<List<VelaWifiNetworkEntity>>
 
     @Upsert
     suspend fun upsertWifiNetworks(networks: List<VelaWifiNetworkEntity>)
 
-    @Query("DELETE FROM vela_wifi_networks")
-    suspend fun clearWifiNetworks()
+    @Query("DELETE FROM vela_wifi_networks WHERE connectionId = :connectionId")
+    suspend fun clearWifiNetworks(connectionId: Long)
 
-    @Query("DELETE FROM vela_wifi_networks WHERE ssid NOT IN (:ssids)")
-    suspend fun deleteWifiNetworksExcept(ssids: List<String>)
+    @Query("DELETE FROM vela_wifi_networks WHERE connectionId = :connectionId AND ssid NOT IN (:ssids)")
+    suspend fun deleteWifiNetworksExcept(connectionId: Long, ssids: List<String>)
 
     @Transaction
-    suspend fun replaceWifiNetworks(networks: List<VelaWifiNetworkEntity>) {
+    suspend fun replaceWifiNetworks(connectionId: Long, networks: List<VelaWifiNetworkEntity>) {
         if (networks.isEmpty()) {
-            clearWifiNetworks()
+            clearWifiNetworks(connectionId)
         } else {
             upsertWifiNetworks(networks)
-            deleteWifiNetworksExcept(networks.map { it.ssid })
+            deleteWifiNetworksExcept(connectionId, networks.map { it.ssid })
         }
     }
 
-    @Query("SELECT * FROM vela_bluetooth WHERE id = 0")
-    fun observeBluetoothState(): Flow<VelaBluetoothEntity?>
+    @Query("SELECT * FROM vela_bluetooth WHERE connectionId = :connectionId")
+    fun observeBluetoothState(connectionId: Long): Flow<VelaBluetoothEntity?>
 
     @Upsert
     suspend fun upsertBluetoothState(state: VelaBluetoothEntity)
 
-    @Query("SELECT * FROM vela_bluetooth_devices")
-    fun observeBluetoothDevices(): Flow<List<VelaBluetoothDeviceEntity>>
+    @Query("SELECT * FROM vela_bluetooth_devices WHERE connectionId = :connectionId")
+    fun observeBluetoothDevices(connectionId: Long): Flow<List<VelaBluetoothDeviceEntity>>
 
     @Upsert
     suspend fun upsertBluetoothDevices(devices: List<VelaBluetoothDeviceEntity>)
 
-    @Query("DELETE FROM vela_bluetooth_devices")
-    suspend fun clearBluetoothDevices()
+    @Query("DELETE FROM vela_bluetooth_devices WHERE connectionId = :connectionId")
+    suspend fun clearBluetoothDevices(connectionId: Long)
 
-    @Query("DELETE FROM vela_bluetooth_devices WHERE address NOT IN (:addresses)")
-    suspend fun deleteBluetoothDevicesExcept(addresses: List<String>)
+    @Query("DELETE FROM vela_bluetooth_devices WHERE connectionId = :connectionId AND address NOT IN (:addresses)")
+    suspend fun deleteBluetoothDevicesExcept(connectionId: Long, addresses: List<String>)
 
     @Transaction
-    suspend fun replaceBluetoothDevices(devices: List<VelaBluetoothDeviceEntity>) {
+    suspend fun replaceBluetoothDevices(connectionId: Long, devices: List<VelaBluetoothDeviceEntity>) {
         if (devices.isEmpty()) {
-            clearBluetoothDevices()
+            clearBluetoothDevices(connectionId)
         } else {
             upsertBluetoothDevices(devices)
-            deleteBluetoothDevicesExcept(devices.map { it.address })
+            deleteBluetoothDevicesExcept(connectionId, devices.map { it.address })
         }
     }
 
-    @Query("SELECT * FROM vela_brightness WHERE id = 0")
-    fun observeBrightness(): Flow<VelaBrightnessEntity?>
+    @Query("SELECT * FROM vela_brightness WHERE connectionId = :connectionId")
+    fun observeBrightness(connectionId: Long): Flow<VelaBrightnessEntity?>
 
     @Upsert
     suspend fun upsertBrightness(brightness: VelaBrightnessEntity)
 
-    @Query("SELECT * FROM vela_resolution WHERE id = 0")
-    fun observeResolution(): Flow<VelaResolutionEntity?>
+    @Query("SELECT * FROM vela_resolution WHERE connectionId = :connectionId")
+    fun observeResolution(connectionId: Long): Flow<VelaResolutionEntity?>
 
     @Upsert
     suspend fun upsertResolution(resolution: VelaResolutionEntity)
 
-    @Query("SELECT * FROM vela_cpu_usage WHERE id = 0")
-    fun observeCpuUsage(): Flow<VelaCpuUsageEntity?>
+    @Query("SELECT * FROM vela_cpu_usage WHERE connectionId = :connectionId")
+    fun observeCpuUsage(connectionId: Long): Flow<VelaCpuUsageEntity?>
 
     @Upsert
     suspend fun upsertCpuUsage(cpuUsage: VelaCpuUsageEntity)
 
-    @Query("SELECT * FROM vela_ram_usage WHERE id = 0")
-    fun observeRamUsage(): Flow<VelaRamUsageEntity?>
+    @Query("SELECT * FROM vela_ram_usage WHERE connectionId = :connectionId")
+    fun observeRamUsage(connectionId: Long): Flow<VelaRamUsageEntity?>
 
     @Upsert
     suspend fun upsertRamUsage(ramUsage: VelaRamUsageEntity)
 
-    @Query("SELECT * FROM vela_gpu_usage")
-    fun observeGpuUsage(): Flow<List<VelaGpuUsageEntity>>
+    @Query("SELECT * FROM vela_gpu_usage WHERE connectionId = :connectionId")
+    fun observeGpuUsage(connectionId: Long): Flow<List<VelaGpuUsageEntity>>
 
     @Upsert
     suspend fun upsertGpuUsage(gpuUsage: List<VelaGpuUsageEntity>)
 
-    @Query("DELETE FROM vela_gpu_usage")
-    suspend fun clearGpuUsage()
+    @Query("DELETE FROM vela_gpu_usage WHERE connectionId = :connectionId")
+    suspend fun clearGpuUsage(connectionId: Long)
 
-    @Query("DELETE FROM vela_gpu_usage WHERE name NOT IN (:names)")
-    suspend fun deleteGpuUsageExcept(names: List<String>)
+    @Query("DELETE FROM vela_gpu_usage WHERE connectionId = :connectionId AND name NOT IN (:names)")
+    suspend fun deleteGpuUsageExcept(connectionId: Long, names: List<String>)
 
     @Transaction
-    suspend fun replaceGpuUsage(gpuUsage: List<VelaGpuUsageEntity>) {
+    suspend fun replaceGpuUsage(connectionId: Long, gpuUsage: List<VelaGpuUsageEntity>) {
         if (gpuUsage.isEmpty()) {
-            clearGpuUsage()
+            clearGpuUsage(connectionId)
         } else {
             upsertGpuUsage(gpuUsage)
-            deleteGpuUsageExcept(gpuUsage.map { it.name })
+            deleteGpuUsageExcept(connectionId, gpuUsage.map { it.name })
         }
     }
 
-    @Query("SELECT * FROM vela_disk_io")
-    fun observeDiskIo(): Flow<List<VelaDiskIoEntity>>
+    @Query("SELECT * FROM vela_disk_io WHERE connectionId = :connectionId")
+    fun observeDiskIo(connectionId: Long): Flow<List<VelaDiskIoEntity>>
 
     @Upsert
     suspend fun upsertDiskIo(diskIo: List<VelaDiskIoEntity>)
 
-    @Query("DELETE FROM vela_disk_io")
-    suspend fun clearDiskIo()
+    @Query("DELETE FROM vela_disk_io WHERE connectionId = :connectionId")
+    suspend fun clearDiskIo(connectionId: Long)
 
-    @Query("DELETE FROM vela_disk_io WHERE device NOT IN (:devices)")
-    suspend fun deleteDiskIoExcept(devices: List<String>)
+    @Query("DELETE FROM vela_disk_io WHERE connectionId = :connectionId AND device NOT IN (:devices)")
+    suspend fun deleteDiskIoExcept(connectionId: Long, devices: List<String>)
 
     @Transaction
-    suspend fun replaceDiskIo(diskIo: List<VelaDiskIoEntity>) {
+    suspend fun replaceDiskIo(connectionId: Long, diskIo: List<VelaDiskIoEntity>) {
         if (diskIo.isEmpty()) {
-            clearDiskIo()
+            clearDiskIo(connectionId)
         } else {
             upsertDiskIo(diskIo)
-            deleteDiskIoExcept(diskIo.map { it.device })
+            deleteDiskIoExcept(connectionId, diskIo.map { it.device })
         }
     }
 
-    @Query("SELECT * FROM vela_network_io")
-    fun observeNetworkIo(): Flow<List<VelaNetworkIoEntity>>
+    @Query("SELECT * FROM vela_network_io WHERE connectionId = :connectionId")
+    fun observeNetworkIo(connectionId: Long): Flow<List<VelaNetworkIoEntity>>
 
     @Upsert
     suspend fun upsertNetworkIo(networkIo: List<VelaNetworkIoEntity>)
 
-    @Query("DELETE FROM vela_network_io")
-    suspend fun clearNetworkIo()
+    @Query("DELETE FROM vela_network_io WHERE connectionId = :connectionId")
+    suspend fun clearNetworkIo(connectionId: Long)
 
-    @Query("DELETE FROM vela_network_io WHERE interfaceName NOT IN (:interfaces)")
-    suspend fun deleteNetworkIoExcept(interfaces: List<String>)
+    @Query("DELETE FROM vela_network_io WHERE connectionId = :connectionId AND interfaceName NOT IN (:interfaces)")
+    suspend fun deleteNetworkIoExcept(connectionId: Long, interfaces: List<String>)
 
     @Transaction
-    suspend fun replaceNetworkIo(networkIo: List<VelaNetworkIoEntity>) {
+    suspend fun replaceNetworkIo(connectionId: Long, networkIo: List<VelaNetworkIoEntity>) {
         if (networkIo.isEmpty()) {
-            clearNetworkIo()
+            clearNetworkIo(connectionId)
         } else {
             upsertNetworkIo(networkIo)
-            deleteNetworkIoExcept(networkIo.map { it.interfaceName })
+            deleteNetworkIoExcept(connectionId, networkIo.map { it.interfaceName })
         }
     }
 
-    @Query("SELECT * FROM vela_temperatures")
-    fun observeTemperatures(): Flow<List<VelaTemperatureEntity>>
+    @Query("SELECT * FROM vela_temperatures WHERE connectionId = :connectionId")
+    fun observeTemperatures(connectionId: Long): Flow<List<VelaTemperatureEntity>>
 
     @Upsert
     suspend fun upsertTemperatures(temperatures: List<VelaTemperatureEntity>)
 
-    @Query("DELETE FROM vela_temperatures")
-    suspend fun clearTemperatures()
+    @Query("DELETE FROM vela_temperatures WHERE connectionId = :connectionId")
+    suspend fun clearTemperatures(connectionId: Long)
 
-    @Query("DELETE FROM vela_temperatures WHERE id NOT IN (:ids)")
-    suspend fun deleteTemperaturesExcept(ids: List<String>)
+    @Query("DELETE FROM vela_temperatures WHERE connectionId = :connectionId AND id NOT IN (:ids)")
+    suspend fun deleteTemperaturesExcept(connectionId: Long, ids: List<String>)
 
     @Transaction
-    suspend fun replaceTemperatures(temperatures: List<VelaTemperatureEntity>) {
+    suspend fun replaceTemperatures(connectionId: Long, temperatures: List<VelaTemperatureEntity>) {
         if (temperatures.isEmpty()) {
-            clearTemperatures()
+            clearTemperatures(connectionId)
         } else {
             upsertTemperatures(temperatures)
-            deleteTemperaturesExcept(temperatures.map { it.id })
+            deleteTemperaturesExcept(connectionId, temperatures.map { it.id })
         }
     }
 
-    @Query("SELECT * FROM vela_sensors")
-    fun observeSensors(): Flow<List<VelaSensorEntity>>
+    @Query("SELECT * FROM vela_sensors WHERE connectionId = :connectionId")
+    fun observeSensors(connectionId: Long): Flow<List<VelaSensorEntity>>
 
     @Upsert
     suspend fun upsertSensors(sensors: List<VelaSensorEntity>)
 
-    @Query("DELETE FROM vela_sensors")
-    suspend fun clearSensors()
+    @Query("DELETE FROM vela_sensors WHERE connectionId = :connectionId")
+    suspend fun clearSensors(connectionId: Long)
 
-    @Query("DELETE FROM vela_sensors WHERE name NOT IN (:names)")
-    suspend fun deleteSensorsExcept(names: List<String>)
+    @Query("DELETE FROM vela_sensors WHERE connectionId = :connectionId AND name NOT IN (:names)")
+    suspend fun deleteSensorsExcept(connectionId: Long, names: List<String>)
 
     @Transaction
-    suspend fun replaceSensors(sensors: List<VelaSensorEntity>) {
+    suspend fun replaceSensors(connectionId: Long, sensors: List<VelaSensorEntity>) {
         if (sensors.isEmpty()) {
-            clearSensors()
+            clearSensors(connectionId)
         } else {
             upsertSensors(sensors)
-            deleteSensorsExcept(sensors.map { it.name })
+            deleteSensorsExcept(connectionId, sensors.map { it.name })
         }
     }
 
-    @Query("SELECT * FROM vela_fans")
-    fun observeFans(): Flow<List<VelaFanEntity>>
+    @Query("SELECT * FROM vela_fans WHERE connectionId = :connectionId")
+    fun observeFans(connectionId: Long): Flow<List<VelaFanEntity>>
 
     @Upsert
     suspend fun upsertFans(fans: List<VelaFanEntity>)
 
-    @Query("DELETE FROM vela_fans")
-    suspend fun clearFans()
+    @Query("DELETE FROM vela_fans WHERE connectionId = :connectionId")
+    suspend fun clearFans(connectionId: Long)
 
-    @Query("DELETE FROM vela_fans WHERE id NOT IN (:ids)")
-    suspend fun deleteFansExcept(ids: List<String>)
+    @Query("DELETE FROM vela_fans WHERE connectionId = :connectionId AND id NOT IN (:ids)")
+    suspend fun deleteFansExcept(connectionId: Long, ids: List<String>)
 
     @Transaction
-    suspend fun replaceFans(fans: List<VelaFanEntity>) {
+    suspend fun replaceFans(connectionId: Long, fans: List<VelaFanEntity>) {
         if (fans.isEmpty()) {
-            clearFans()
+            clearFans(connectionId)
         } else {
             upsertFans(fans)
-            deleteFansExcept(fans.map { it.id })
+            deleteFansExcept(connectionId, fans.map { it.id })
         }
     }
 
-    @Query("SELECT * FROM vela_battery WHERE id = 0")
-    fun observeBattery(): Flow<VelaBatteryEntity?>
+    @Query("SELECT * FROM vela_battery WHERE connectionId = :connectionId")
+    fun observeBattery(connectionId: Long): Flow<VelaBatteryEntity?>
 
     @Upsert
     suspend fun upsertBattery(battery: VelaBatteryEntity)
 
-    @Query("SELECT * FROM vela_clipboard WHERE id = 0")
-    fun observeClipboard(): Flow<VelaClipboardEntity?>
+    @Query("SELECT * FROM vela_clipboard WHERE connectionId = :connectionId")
+    fun observeClipboard(connectionId: Long): Flow<VelaClipboardEntity?>
 
     @Upsert
     suspend fun upsertClipboard(clipboard: VelaClipboardEntity)
 
-    @Query("DELETE FROM vela_clipboard")
-    suspend fun clearClipboard()
+    @Query("DELETE FROM vela_clipboard WHERE connectionId = :connectionId")
+    suspend fun clearClipboard(connectionId: Long)
 
-    @Query("SELECT * FROM vela_active_window WHERE id = 0")
-    fun observeActiveWindow(): Flow<VelaActiveWindowEntity?>
+    @Query("SELECT * FROM vela_active_window WHERE connectionId = :connectionId")
+    fun observeActiveWindow(connectionId: Long): Flow<VelaActiveWindowEntity?>
 
     @Upsert
     suspend fun upsertActiveWindow(activeWindow: VelaActiveWindowEntity)
 
-    @Query("SELECT * FROM vela_scheduled_tasks")
-    fun observeScheduledTasks(): Flow<List<VelaScheduledTaskEntity>>
+    @Query("SELECT * FROM vela_scheduled_tasks WHERE connectionId = :connectionId")
+    fun observeScheduledTasks(connectionId: Long): Flow<List<VelaScheduledTaskEntity>>
 
     @Upsert
     suspend fun upsertScheduledTasks(tasks: List<VelaScheduledTaskEntity>)
 
-    @Query("DELETE FROM vela_scheduled_tasks")
-    suspend fun clearScheduledTasks()
+    @Query("DELETE FROM vela_scheduled_tasks WHERE connectionId = :connectionId")
+    suspend fun clearScheduledTasks(connectionId: Long)
 
-    @Query("DELETE FROM vela_scheduled_tasks WHERE id = :taskId")
-    suspend fun deleteScheduledTask(taskId: String)
+    @Query("DELETE FROM vela_scheduled_tasks WHERE connectionId = :connectionId AND id = :taskId")
+    suspend fun deleteScheduledTask(connectionId: Long, taskId: String)
 
     @Transaction
-    suspend fun replaceScheduledTasks(tasks: List<VelaScheduledTaskEntity>) {
+    suspend fun replaceScheduledTasks(connectionId: Long, tasks: List<VelaScheduledTaskEntity>) {
         if (tasks.isEmpty()) {
-            clearScheduledTasks()
+            clearScheduledTasks(connectionId)
         } else {
             upsertScheduledTasks(tasks)
-            // Note: deleteScheduledTasksExcept might be needed here too
         }
     }
 
-    @Query("SELECT * FROM vela_files WHERE parentPath = :parentPath")
-    fun observeFiles(parentPath: String): Flow<List<VelaFileEntity>>
+    @Query("SELECT * FROM vela_files WHERE connectionId = :connectionId AND parentPath = :parentPath")
+    fun observeFiles(connectionId: Long, parentPath: String): Flow<List<VelaFileEntity>>
 
     @Upsert
     suspend fun upsertFiles(files: List<VelaFileEntity>)
 
-    @Query("DELETE FROM vela_files WHERE parentPath = :parentPath")
-    suspend fun clearFiles(parentPath: String)
+    @Query("DELETE FROM vela_files WHERE connectionId = :connectionId AND parentPath = :parentPath")
+    suspend fun clearFiles(connectionId: Long, parentPath: String)
 
     @Transaction
-    suspend fun replaceFiles(parentPath: String, files: List<VelaFileEntity>) {
+    suspend fun replaceFiles(connectionId: Long, parentPath: String, files: List<VelaFileEntity>) {
         if (files.isEmpty()) {
-            clearFiles(parentPath)
+            clearFiles(connectionId, parentPath)
         } else {
             upsertFiles(files)
-            // Note: deleteFilesExcept might be needed here too
         }
     }
 
-    @Query("SELECT * FROM vela_config WHERE id = 0")
-    fun observeConfig(): Flow<VelaConfigEntity?>
+    @Query("SELECT * FROM vela_config WHERE connectionId = :connectionId")
+    fun observeConfig(connectionId: Long): Flow<VelaConfigEntity?>
 
     @Upsert
     suspend fun upsertConfig(config: VelaConfigEntity)
+
+    @Transaction
+    suspend fun deleteAllForConnection(connectionId: Long) {
+        clearHealth(connectionId)
+        clearDevice(connectionId)
+        clearNetwork(connectionId)
+        clearAudioDevices(connectionId)
+        clearProcesses(connectionId)
+        clearDisks(connectionId)
+        clearNotifications(connectionId)
+        clearWifiNetworks(connectionId)
+        clearBluetoothDevices(connectionId)
+        clearGpuUsage(connectionId)
+        clearDiskIo(connectionId)
+        clearNetworkIo(connectionId)
+        clearTemperatures(connectionId)
+        clearSensors(connectionId)
+        clearFans(connectionId)
+        clearClipboard(connectionId)
+        clearScheduledTasks(connectionId)
+        // Singletons + remaining tables
+        clearFilesAll(connectionId)
+        clearSingletonRows(connectionId)
+    }
+
+    @Query("DELETE FROM vela_files WHERE connectionId = :connectionId")
+    suspend fun clearFilesAll(connectionId: Long)
+
+    @Query("DELETE FROM vela_uptime WHERE connectionId = :connectionId")
+    suspend fun clearUptime(connectionId: Long)
+
+    @Query("DELETE FROM NetUsageEntity WHERE connectionId = :connectionId")
+    suspend fun clearNetUsage(connectionId: Long)
+
+    @Query("DELETE FROM vela_audio WHERE connectionId = :connectionId")
+    suspend fun clearAudio(connectionId: Long)
+
+    @Query("DELETE FROM vela_media WHERE connectionId = :connectionId")
+    suspend fun clearMedia(connectionId: Long)
+
+    @Query("DELETE FROM vela_wifi WHERE connectionId = :connectionId")
+    suspend fun clearWifi(connectionId: Long)
+
+    @Query("DELETE FROM vela_bluetooth WHERE connectionId = :connectionId")
+    suspend fun clearBluetooth(connectionId: Long)
+
+    @Query("DELETE FROM vela_brightness WHERE connectionId = :connectionId")
+    suspend fun clearBrightness(connectionId: Long)
+
+    @Query("DELETE FROM vela_resolution WHERE connectionId = :connectionId")
+    suspend fun clearResolution(connectionId: Long)
+
+    @Query("DELETE FROM vela_cpu_usage WHERE connectionId = :connectionId")
+    suspend fun clearCpuUsage(connectionId: Long)
+
+    @Query("DELETE FROM vela_ram_usage WHERE connectionId = :connectionId")
+    suspend fun clearRamUsage(connectionId: Long)
+
+    @Query("DELETE FROM vela_battery WHERE connectionId = :connectionId")
+    suspend fun clearBattery(connectionId: Long)
+
+    @Query("DELETE FROM vela_active_window WHERE connectionId = :connectionId")
+    suspend fun clearActiveWindow(connectionId: Long)
+
+    @Query("DELETE FROM vela_config WHERE connectionId = :connectionId")
+    suspend fun clearConfig(connectionId: Long)
+
+    @Transaction
+    suspend fun clearSingletonRows(connectionId: Long) {
+        clearUptime(connectionId)
+        clearNetUsage(connectionId)
+        clearAudio(connectionId)
+        clearMedia(connectionId)
+        clearWifi(connectionId)
+        clearBluetooth(connectionId)
+        clearBrightness(connectionId)
+        clearResolution(connectionId)
+        clearCpuUsage(connectionId)
+        clearRamUsage(connectionId)
+        clearBattery(connectionId)
+        clearActiveWindow(connectionId)
+        clearConfig(connectionId)
+    }
 }

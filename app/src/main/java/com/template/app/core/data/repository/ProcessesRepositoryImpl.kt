@@ -8,6 +8,9 @@ import com.template.app.core.data.local.entities.VelaProcessEntity
 import com.template.app.core.data.remote.api.VelaApiService
 import com.template.app.core.data.remote.dto.ProcessItem
 import com.template.app.core.data.remote.dto.ProcessesResponse
+import com.template.app.core.device.ActiveConnectionProvider
+import com.template.app.core.device.scoped
+import com.template.app.core.device.scopedNullable
 import com.template.app.core.utils.Resource
 import com.template.app.core.utils.safeApiCall
 import com.template.app.domain.model.VelaProcess
@@ -19,25 +22,32 @@ import javax.inject.Inject
 class ProcessesRepositoryImpl @Inject constructor(
     private val apiService: VelaApiService,
     private val velaDao: VelaDao,
-    private val moshi: Moshi
+    private val moshi: Moshi,
+    private val activeConnection: ActiveConnectionProvider,
 ) : ProcessesRepository {
 
     override fun observeActiveWindow(): Flow<String?> =
-        velaDao.observeActiveWindow().map { it?.title }
+        activeConnection.scopedNullable { id ->
+            velaDao.observeActiveWindow(id).map { it?.title }
+        }
 
     override fun observeProcesses(limit: Int): Flow<List<VelaProcess>> =
-        velaDao.observeProcesses(limit).map { list -> list.map { it.toDomain() } }
+        activeConnection.scoped(emptyList()) { id ->
+            velaDao.observeProcesses(id, limit).map { list -> list.map { it.toDomain() } }
+        }
 
     override suspend fun getProcesses(): Resource<List<VelaProcess>> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val jsonStr = apiService.getProcesses().string()
         val domains = parseProcessesResiliently(jsonStr)
-        velaDao.replaceProcesses(domains.map { VelaProcessEntity.fromDomain(it) })
+        velaDao.replaceProcesses(connectionId, domains.map { VelaProcessEntity.fromDomain(connectionId, it) })
         domains
     }
 
     override suspend fun getActiveWindow(): Resource<String> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val title = apiService.getActiveWindow().title ?: ""
-        velaDao.upsertActiveWindow(VelaActiveWindowEntity.fromTitle(title))
+        velaDao.upsertActiveWindow(VelaActiveWindowEntity.fromTitle(connectionId, title))
         title
     }
 

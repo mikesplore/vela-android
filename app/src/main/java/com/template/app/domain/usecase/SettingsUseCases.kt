@@ -1,12 +1,11 @@
 package com.template.app.domain.usecase
 
-import android.util.Log
+import com.template.app.core.utils.Resource
 import com.template.app.domain.model.AppThemeMode
 import com.template.app.domain.model.ConnectionSettings
 import com.template.app.domain.model.VelaConfig
-import com.template.app.domain.repository.SettingsRepository
-import com.template.app.core.utils.Resource
 import com.template.app.domain.repository.ConfigRepository
+import com.template.app.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
@@ -19,24 +18,8 @@ class GetSettingsUseCase @Inject constructor(
 class SaveSettingsUseCase @Inject constructor(
     private val repository: SettingsRepository
 ) {
-    suspend operator fun invoke(
-        baseUrl: String,
-        apiToken: String,
-        themeMode: AppThemeMode = AppThemeMode.SYSTEM
-    ) {
-        val current = repository.getSettings()
-        repository.saveSettings(
-            current.copy(
-                baseUrl = baseUrl,
-                apiToken = apiToken,
-                themeMode = themeMode
-            )
-        )
-    }
-
     suspend fun updateTheme(themeMode: AppThemeMode) {
-        val current = repository.getSettings()
-        repository.saveSettings(current.copy(themeMode = themeMode))
+        repository.saveTheme(themeMode)
     }
 }
 
@@ -50,16 +33,4 @@ class ObserveVelaConfigUseCase @Inject constructor(
     private val velaRepository: ConfigRepository
 ) {
     operator fun invoke(): Flow<VelaConfig?> = velaRepository.observeConfig()
-}
-
-class CompleteOnboardingUseCase @Inject constructor(
-    private val repository: SettingsRepository
-) {
-    suspend operator fun invoke() = repository.completeOnboarding()
-}
-
-class ClearSettingsUseCase @Inject constructor(
-    private val repository: SettingsRepository
-) {
-    suspend operator fun invoke() = repository.clearSettings()
 }

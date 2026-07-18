@@ -74,22 +74,92 @@ private fun VelaCard(
 fun StatusCard(
     uptime: VelaUptime?
 ) {
+    val parts = remember(uptime?.seconds) { uptimeDisplayParts(uptime) }
+
     VelaCard {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             SectionHeader("System uptime")
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = uptime?.formatted ?: "00:00:00",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 52.sp,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                parts.forEachIndexed { index, part ->
+                    if (index > 0) {
+                        Text(
+                            text = ":",
+                            fontWeight = FontWeight.Light,
+                            fontSize = 28.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                            modifier = Modifier.padding(bottom = 14.dp)
+                        )
+                    }
+                    UptimeUnit(
+                        value = part.value,
+                        label = part.label
+                    )
+                }
+            }
         }
+    }
+}
+
+private data class UptimePart(val value: String, val label: String)
+
+/**
+ * Build 3 compact units from total seconds so long uptimes never overflow a single line.
+ * < 1 day  → hours : minutes : seconds
+ * ≥ 1 day  → days : hours : minutes
+ */
+private fun uptimeDisplayParts(uptime: VelaUptime?): List<UptimePart> {
+    val totalSec = uptime?.seconds?.coerceAtLeast(0) ?: 0
+    val days = totalSec / 86_400
+    val hours = (totalSec % 86_400) / 3_600
+    val minutes = (totalSec % 3_600) / 60
+    val seconds = totalSec % 60
+
+    return if (days > 0) {
+        listOf(
+            UptimePart(days.toString(), if (days == 1) "day" else "days"),
+            UptimePart(hours.toString().padStart(2, '0'), "hrs"),
+            UptimePart(minutes.toString().padStart(2, '0'), "min")
+        )
+    } else {
+        listOf(
+            UptimePart(hours.toString(), "hrs"),
+            UptimePart(minutes.toString().padStart(2, '0'), "min"),
+            UptimePart(seconds.toString().padStart(2, '0'), "sec")
+        )
+    }
+}
+
+@Composable
+private fun UptimeUnit(
+    value: String,
+    label: String
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 36.sp,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label.uppercase(),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.8.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+        )
     }
 }
 

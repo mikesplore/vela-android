@@ -4,6 +4,8 @@ import com.template.app.core.data.local.dao.VelaDao
 import com.template.app.core.data.local.entities.*
 import com.template.app.core.data.remote.api.VelaApiService
 import com.template.app.core.data.remote.dto.*
+import com.template.app.core.device.ActiveConnectionProvider
+import com.template.app.core.device.scopedNullable
 import com.template.app.core.utils.Resource
 import com.template.app.core.utils.safeApiCall
 import com.template.app.domain.model.*
@@ -17,48 +19,66 @@ import javax.inject.Singleton
 @Singleton
 class NetworkRepositoryImpl @Inject constructor(
     private val apiService: VelaApiService,
-    private val velaDao: VelaDao
+    private val velaDao: VelaDao,
+    private val activeConnection: ActiveConnectionProvider,
 ) : NetworkRepository {
 
     override fun observeNetwork(): Flow<VelaNetworkInfo?> =
-        velaDao.observeNetwork().map { it?.toDomain() }
+        activeConnection.scopedNullable { id ->
+            velaDao.observeNetwork(id).map { it?.toDomain() }
+        }
 
     override fun observeWifi(): Flow<VelaWifiStatus?> =
-        combine(
-            velaDao.observeWifi(),
-            velaDao.observeWifiNetworks()
-        ) { status, networks ->
-            val actualStatus = status ?: VelaWifiEntity(connected = false, ssid = null, device = null, signal = null, isEnabled = true)
-            actualStatus.toDomain(networks.map { it.toDomain() })
+        activeConnection.scopedNullable { id ->
+            combine(
+                velaDao.observeWifi(id),
+                velaDao.observeWifiNetworks(id)
+            ) { status, networks ->
+                val actualStatus = status ?: VelaWifiEntity(
+                    connectionId = id,
+                    connected = false,
+                    ssid = null,
+                    device = null,
+                    signal = null,
+                    isEnabled = true
+                )
+                actualStatus.toDomain(networks.map { it.toDomain() })
+            }
         }
 
     override fun observeBluetooth(): Flow<VelaBluetoothStatus?> =
-        combine(
-            velaDao.observeBluetoothState(),
-            velaDao.observeBluetoothDevices()
-        ) { state, devices ->
-            val actualState = state ?: VelaBluetoothEntity(isEnabled = true)
-            actualState.toDomain(
-                connected = devices.filter { it.isConnected }.map { it.toDomain() },
-                paired = devices.filter { it.isPaired }.map { it.toDomain() }
-            )
+        activeConnection.scopedNullable { id ->
+            combine(
+                velaDao.observeBluetoothState(id),
+                velaDao.observeBluetoothDevices(id)
+            ) { state, devices ->
+                val actualState = state ?: VelaBluetoothEntity(connectionId = id, isEnabled = true)
+                actualState.toDomain(
+                    connected = devices.filter { it.isConnected }.map { it.toDomain() },
+                    paired = devices.filter { it.isPaired }.map { it.toDomain() }
+                )
+            }
         }
 
     override fun observeNetUsage(): Flow<NetUsage?> =
-        velaDao.observeNetUsage().map { it?.toDomain() }
+        activeConnection.scopedNullable { id ->
+            velaDao.observeNetUsage(id).map { it?.toDomain() }
+        }
 
     override suspend fun getNetworkInfo(): Resource<VelaNetworkInfo> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val response = apiService.getNetworkIp()
         val domain = VelaNetworkInfo(
             localIp = response.localIp ?: "",
             publicIp = response.publicIp,
             location = null
         )
-        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(domain))
+        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(connectionId, domain))
         domain
     }
 
     override suspend fun getNetworkLocation(): Resource<VelaNetworkInfo> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val response = apiService.getNetworkLocation()
         val domain = VelaNetworkInfo(
             localIp = response.localIp ?: "",
@@ -77,7 +97,7 @@ class NetworkRepositoryImpl @Inject constructor(
                 )
             }
         )
-        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(domain))
+        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(connectionId, domain))
         domain
     }
 
@@ -87,7 +107,7 @@ class NetworkRepositoryImpl @Inject constructor(
             ssid = ssid,
             device = device,
             signal = signal,
-            isEnabled = true, 
+            isEnabled = true,
             availableNetworks = networks?.map {
                 VelaWifiNetwork(
                     ssid = it.ssid ?: "Unknown",
@@ -100,70 +120,77 @@ class NetworkRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getWifiStatus(): Resource<VelaWifiStatus> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.getWifiStatus()
         val domain = res.toDomainModel()
-        velaDao.upsertWifi(VelaWifiEntity.fromDomain(domain))
-        velaDao.replaceWifiNetworks(domain.availableNetworks.map { VelaWifiNetworkEntity.fromDomain(it) })
+        velaDao.upsertWifi(VelaWifiEntity.fromDomain(connectionId, domain))
+        velaDao.replaceWifiNetworks(connectionId, domain.availableNetworks.map { VelaWifiNetworkEntity.fromDomain(connectionId, it) })
         domain
     }
 
     override suspend fun getWifiList(): Resource<VelaWifiStatus> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.getWifiList()
         val domain = res.toDomainModel()
-        velaDao.upsertWifi(VelaWifiEntity.fromDomain(domain))
-        velaDao.replaceWifiNetworks(domain.availableNetworks.map { VelaWifiNetworkEntity.fromDomain(it) })
+        velaDao.upsertWifi(VelaWifiEntity.fromDomain(connectionId, domain))
+        velaDao.replaceWifiNetworks(connectionId, domain.availableNetworks.map { VelaWifiNetworkEntity.fromDomain(connectionId, it) })
         domain
     }
 
     override suspend fun connectWifi(ssid: String, password: String?): Resource<VelaWifiStatus> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.connectWifi(WifiConnectRequest(ssid, password))
         val domain = res.toDomainModel()
-        velaDao.upsertWifi(VelaWifiEntity.fromDomain(domain))
-        velaDao.replaceWifiNetworks(domain.availableNetworks.map { VelaWifiNetworkEntity.fromDomain(it) })
+        velaDao.upsertWifi(VelaWifiEntity.fromDomain(connectionId, domain))
+        velaDao.replaceWifiNetworks(connectionId, domain.availableNetworks.map { VelaWifiNetworkEntity.fromDomain(connectionId, it) })
         domain
     }
 
     override suspend fun disconnectWifi(): Resource<VelaNetworkInfo> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.disconnectWifi()
         val domain = VelaNetworkInfo(
             localIp = res.localIp ?: "",
             publicIp = res.publicIp,
             location = null
         )
-        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(domain))
+        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(connectionId, domain))
         val currentWifi = VelaWifiStatus(false, null, null, null, true)
-        velaDao.upsertWifi(VelaWifiEntity.fromDomain(currentWifi))
+        velaDao.upsertWifi(VelaWifiEntity.fromDomain(connectionId, currentWifi))
         domain
     }
 
     override suspend fun toggleWifi(enabled: Boolean): Resource<VelaNetworkInfo> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.toggleWifi(WifiToggleRequest(enabled))
         val domain = VelaNetworkInfo(
             localIp = res.localIp ?: "",
             publicIp = res.publicIp,
             location = null
         )
-        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(domain))
+        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(connectionId, domain))
         val currentWifi = VelaWifiStatus(false, null, null, null, enabled)
-        velaDao.upsertWifi(VelaWifiEntity.fromDomain(currentWifi))
+        velaDao.upsertWifi(VelaWifiEntity.fromDomain(connectionId, currentWifi))
         domain
     }
 
     override suspend fun toggleBluetooth(enabled: Boolean): Resource<VelaNetworkInfo> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.toggleBluetooth(BluetoothToggleRequest(enabled))
         val domain = VelaNetworkInfo(
             localIp = res.localIp ?: "",
             publicIp = res.publicIp,
             location = null
         )
-        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(domain))
-        velaDao.upsertBluetoothState(VelaBluetoothEntity(isEnabled = enabled))
+        velaDao.upsertNetwork(VelaNetworkEntity.fromDomain(connectionId, domain))
+        velaDao.upsertBluetoothState(VelaBluetoothEntity(connectionId = connectionId, isEnabled = enabled))
         domain
     }
 
     override suspend fun getBluetoothDevices(): Resource<VelaBluetoothStatus> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val response = apiService.getBluetoothDevices()
-        
+
         val connected = response.connectedDevices?.map {
             VelaBluetoothDevice(it.address ?: "", it.name ?: "Unknown", true, it.paired ?: true)
         } ?: emptyList()
@@ -173,10 +200,10 @@ class NetworkRepositoryImpl @Inject constructor(
         } ?: emptyList()
 
         val allDevices = (connected + paired).distinctBy { it.address }
-        
-        velaDao.replaceBluetoothDevices(allDevices.map { VelaBluetoothDeviceEntity.fromDomain(it) })
-        velaDao.upsertBluetoothState(VelaBluetoothEntity(isEnabled = true))
-        
+
+        velaDao.replaceBluetoothDevices(connectionId, allDevices.map { VelaBluetoothDeviceEntity.fromDomain(connectionId, it) })
+        velaDao.upsertBluetoothState(VelaBluetoothEntity(connectionId = connectionId, isEnabled = true))
+
         VelaBluetoothStatus(connected, paired, true)
     }
 
@@ -221,6 +248,7 @@ class NetworkRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getNetworkUsage(period: String): Resource<NetUsage> = safeApiCall {
+        val connectionId = activeConnection.requireActiveId()
         val res = apiService.getNetworkUsage(period)
         val domain = NetUsage(
             interfaceName = res.interfaceName,
@@ -230,7 +258,7 @@ class NetworkRepositoryImpl @Inject constructor(
             received = res.received,
             transmitted = res.transmitted
         )
-        velaDao.upsertNetUsage(NetUsageEntity.fromDomain(domain))
+        velaDao.upsertNetUsage(NetUsageEntity.fromDomain(connectionId, domain))
         domain
     }
 }

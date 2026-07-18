@@ -35,7 +35,8 @@ import com.template.app.presentation.ui.Routes
 @Composable
 fun MainScreen(
     rootNavController: NavHostController,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onAddDevice: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val sheetState = rememberModalBottomSheetState()
@@ -107,7 +108,9 @@ fun MainScreen(
             startDestination = Routes.DASHBOARD,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Routes.DASHBOARD) { DashboardScreen() }
+            composable(Routes.DASHBOARD) {
+                DashboardScreen(onAddDevice = onAddDevice)
+            }
             composable(Routes.DISPLAY) { DisplayScreen() }
             composable(Routes.MONITOR) { MonitorScreen() }
             composable(Routes.MEDIA) { MediaScreen() }
@@ -126,7 +129,12 @@ fun MainScreen(
             composable(Routes.CLIPBOARD) { ClipboardScreen() }
             composable(Routes.INPUT_CONTROL) { InputControlScreen() }
             composable(Routes.NOTIFICATIONS) { NotificationsScreen() }
-            composable(Routes.SETTINGS) { SettingsScreen(onCredentialsCleared = { onLogout() })}
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    onCredentialsCleared = { onLogout() },
+                    onAddDevice = onAddDevice
+                )
+            }
         }
 
         if (showSheet) {

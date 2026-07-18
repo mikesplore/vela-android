@@ -1,26 +1,28 @@
 package com.template.app.core.data.local.entities
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 import com.template.app.domain.model.AssistantChatMessage
 import com.template.app.domain.model.AssistantConfirmation
 import com.template.app.domain.model.ToolCall
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 
-@Entity(tableName = "assistant_messages")
+@Entity(
+    tableName = "assistant_messages",
+    primaryKeys = ["connectionId", "id"]
+)
 data class AssistantMessageEntity(
-    @PrimaryKey val id: String,
+    val connectionId: Long,
+    val id: String,
     val text: String,
     val isUser: Boolean,
     val timestamp: Long,
-    val imagePath: String?, // Changed from imageBase64
+    val imagePath: String?,
     val artUrl: String?,
     val isPinRequired: Boolean,
     val pendingActionId: String?,
     val thinkingText: String?,
-    val toolCallsJson: String?, // Store as JSON string for simplicity
-    // Confirmation fields
+    val toolCallsJson: String?,
     val confTitle: String?,
     val confDescription: String?,
     val confActionType: String?,
@@ -64,11 +66,16 @@ data class AssistantMessageEntity(
     }
 
     companion object {
-        fun fromDomain(domain: AssistantChatMessage, moshi: Moshi): AssistantMessageEntity {
+        fun fromDomain(
+            connectionId: Long,
+            domain: AssistantChatMessage,
+            moshi: Moshi
+        ): AssistantMessageEntity {
             val type = Types.newParameterizedType(List::class.java, ToolCall::class.java)
             val toolCallsJson = moshi.adapter<List<ToolCall>>(type).toJson(domain.toolCalls)
 
             return AssistantMessageEntity(
+                connectionId = connectionId,
                 id = domain.id,
                 text = domain.text,
                 isUser = domain.isUser,
