@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.template.app.presentation.ui.components.SectionHeader
-import com.template.app.presentation.ui.components.VelaConfirmationSheet
+import com.template.app.presentation.ui.components.SecureConfirmGate
 import com.template.app.presentation.viewmodel.PowerViewModel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -135,9 +135,9 @@ fun PowerScreen(
         }
     }
 
-    // 1. Reusable Confirmation Sheets
     actionToConfirm?.let { action ->
-        VelaConfirmationSheet(
+        SecureConfirmGate(
+            visible = true,
             onDismiss = { actionToConfirm = null },
             onConfirm = {
                 when (action) {
@@ -146,13 +146,14 @@ fun PowerScreen(
                     PowerActionType.SLEEP -> viewModel.sleep()
                     PowerActionType.HIBERNATE -> viewModel.hibernate()
                 }
-                actionToConfirm = null
             },
             title = action.displayName,
             message = "Are you sure you want to perform this action?",
             confirmText = "Confirm",
             isDanger = action == PowerActionType.SHUTDOWN,
-            icon = action.icon
+            icon = action.icon,
+            biometricTitle = action.displayName,
+            biometricSubtitle = "Confirm this power action"
         )
     }
 

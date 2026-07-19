@@ -94,7 +94,7 @@ import com.template.app.domain.model.VelaBreadcrumb
 import com.template.app.domain.model.VelaDiskUsage
 import com.template.app.domain.model.VelaFileInfo
 import com.template.app.presentation.ui.components.SectionHeader
-import com.template.app.presentation.ui.components.VelaConfirmationSheet
+import com.template.app.presentation.ui.components.SecureConfirmGate
 import com.template.app.presentation.ui.components.VelaInputSheet
 import com.template.app.presentation.ui.components.rowDivider
 import com.template.app.presentation.viewmodel.FilesViewModel
@@ -328,14 +328,17 @@ fun FilesScreen(
         }
 
         showDeleteConfirm?.let { file ->
-            VelaConfirmationSheet(
+            SecureConfirmGate(
+                visible = true,
                 onDismiss = { showDeleteConfirm = null },
                 onConfirm = { viewModel.deleteFile(file) },
                 title = "Delete ${if (file.type == "directory") "Folder" else "File"}",
                 message = "Are you sure you want to delete '${file.name}'? This action cannot be undone.",
                 confirmText = "Delete",
                 icon = Icons.Default.DeleteForever,
-                isDanger = true
+                isDanger = true,
+                biometricTitle = "Delete ${file.name}",
+                biometricSubtitle = "Confirm this delete action"
             )
         }
     }

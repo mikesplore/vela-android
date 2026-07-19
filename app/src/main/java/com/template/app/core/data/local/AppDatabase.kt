@@ -57,7 +57,7 @@ import com.template.app.core.data.local.entities.*
         VelaUptimeEntity::class,
         NetUsageEntity::class
     ],
-    version = 27,
+    version = 28,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -6,5 +6,6 @@ enum class AppThemeMode {
 
 /** App-wide preferences (not per-device). */
 data class ConnectionSettings(
-    val themeMode: AppThemeMode = AppThemeMode.SYSTEM
+    val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    val biometricsEnabled: Boolean = false
 )

@@ -57,13 +57,25 @@ class AssistantRepositoryImpl @Inject constructor(
         Unit
     }
 
-    override fun sendMessageStream(message: String): Flow<Resource<Unit>> = flow {
+    override fun sendMessageStream(
+        message: String,
+        secureReplyKind: SecureReplyKind?
+    ): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
 
         val connectionId = activeConnection.requireActiveId()
 
-        // 1. Save user message
-        val userMsg = AssistantChatMessage(text = message, isUser = true)
+        // Persist display-safe text for secure replies (never store PIN digits in Room)
+        val displayText = when (secureReplyKind) {
+            SecureReplyKind.PIN_VERIFIED -> ""
+            SecureReplyKind.CONFIRMED, SecureReplyKind.CANCELLED -> ""
+            null -> message
+        }
+        val userMsg = AssistantChatMessage(
+            text = displayText,
+            isUser = true,
+            secureReplyKind = secureReplyKind
+        )
         assistantDao.upsertMessage(AssistantMessageEntity.fromDomain(connectionId, userMsg, moshi))
 
         // 2. Prepare assistant message placeholder

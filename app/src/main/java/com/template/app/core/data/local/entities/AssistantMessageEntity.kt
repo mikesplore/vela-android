@@ -3,6 +3,7 @@ package com.template.app.core.data.local.entities
 import androidx.room.Entity
 import com.template.app.domain.model.AssistantChatMessage
 import com.template.app.domain.model.AssistantConfirmation
+import com.template.app.domain.model.SecureReplyKind
 import com.template.app.domain.model.ToolCall
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -29,7 +30,8 @@ data class AssistantMessageEntity(
     val confDetails: List<String>?,
     val confPromptText: String?,
     val confExpiresInSeconds: Int?,
-    val confRequiresAuth: Boolean?
+    val confRequiresAuth: Boolean?,
+    val secureReplyKind: String? = null
 ) {
     fun toDomain(moshi: Moshi): AssistantChatMessage {
         val confirmation = if (confTitle != null) {
@@ -61,7 +63,10 @@ data class AssistantMessageEntity(
             pendingActionId = pendingActionId,
             thinkingText = thinkingText,
             toolCalls = toolCalls,
-            isStreaming = false
+            isStreaming = false,
+            secureReplyKind = secureReplyKind?.let {
+                runCatching { SecureReplyKind.valueOf(it) }.getOrNull()
+            }
         )
     }
 
@@ -92,7 +97,8 @@ data class AssistantMessageEntity(
                 confDetails = domain.confirmation?.details,
                 confPromptText = domain.confirmation?.promptText,
                 confExpiresInSeconds = domain.confirmation?.expiresInSeconds,
-                confRequiresAuth = domain.confirmation?.requiresAuth
+                confRequiresAuth = domain.confirmation?.requiresAuth,
+                secureReplyKind = domain.secureReplyKind?.name
             )
         }
     }

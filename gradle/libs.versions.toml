@@ -59,6 +59,10 @@ coroutinesTest = "1.9.0"
 material = "1.12.0"
 material3 = "1.3.1"
 
+# Security
+biometric = "1.1.0"
+securityCrypto = "1.1.0"
+
 [libraries]
 # Core
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -121,6 +125,10 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # Coil
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Security
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

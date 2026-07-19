@@ -47,6 +47,12 @@ sealed class VelaStreamEvent {
     ) : VelaStreamEvent()
 }
 
+enum class SecureReplyKind {
+    CONFIRMED,
+    CANCELLED,
+    PIN_VERIFIED
+}
+
 data class AssistantChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val text: String,
@@ -59,7 +65,8 @@ data class AssistantChatMessage(
     val pendingActionId: String? = null,
     val thinkingText: String? = null,
     val toolCalls: List<ToolCall> = emptyList(),
-    val isStreaming: Boolean = false
+    val isStreaming: Boolean = false,
+    val secureReplyKind: SecureReplyKind? = null
 )
 
 data class ToolCall(

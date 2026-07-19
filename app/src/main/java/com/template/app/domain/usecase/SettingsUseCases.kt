@@ -21,6 +21,20 @@ class SaveSettingsUseCase @Inject constructor(
     suspend fun updateTheme(themeMode: AppThemeMode) {
         repository.saveTheme(themeMode)
     }
+
+    suspend fun enableBiometrics(pin: String) {
+        repository.enableBiometrics(pin)
+    }
+
+    suspend fun disableBiometrics() {
+        repository.disableBiometrics()
+    }
+
+    suspend fun updateBiometricPin(pin: String) {
+        repository.updateBiometricPin(pin)
+    }
+
+    fun getStoredPin(): String? = repository.getStoredPin()
 }
 
 class FetchVelaConfigUseCase @Inject constructor(

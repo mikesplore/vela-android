@@ -25,6 +25,7 @@ import javax.inject.Inject
 
 data class SettingsState(
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    val biometricsEnabled: Boolean = false,
     val device: VelaDevice? = null,
     val agentVersion: String = "Unknown",
     val pairedDevices: List<PairedDevice> = emptyList(),
@@ -50,7 +51,12 @@ class SettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             getSettingsUseCase().collectLatest { settings ->
-                _state.update { it.copy(themeMode = settings.themeMode) }
+                _state.update {
+                    it.copy(
+                        themeMode = settings.themeMode,
+                        biometricsEnabled = settings.biometricsEnabled
+                    )
+                }
             }
         }
 
@@ -78,6 +84,27 @@ class SettingsViewModel @Inject constructor(
     fun updateTheme(mode: AppThemeMode) {
         viewModelScope.launch {
             saveSettingsUseCase.updateTheme(mode)
+        }
+    }
+
+    fun enableBiometrics(pin: String) {
+        viewModelScope.launch {
+            saveSettingsUseCase.enableBiometrics(pin)
+            appEventManager.showActionSuccessSnackbar("Biometrics enabled")
+        }
+    }
+
+    fun disableBiometrics() {
+        viewModelScope.launch {
+            saveSettingsUseCase.disableBiometrics()
+            appEventManager.showActionSuccessSnackbar("Biometrics disabled")
+        }
+    }
+
+    fun updateBiometricPin(pin: String) {
+        viewModelScope.launch {
+            saveSettingsUseCase.updateBiometricPin(pin)
+            appEventManager.showActionSuccessSnackbar("PIN updated")
         }
     }
 

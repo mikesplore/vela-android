@@ -19,7 +19,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.template.app.domain.model.AppThemeMode
 import com.template.app.domain.model.PairedDevice
 import com.template.app.presentation.ui.components.SectionHeader
+import com.template.app.presentation.ui.components.VelaConfirmationSheet
+import com.template.app.presentation.ui.components.VelaPinSheet
+import com.template.app.presentation.ui.components.rememberBiometricAuth
+import com.template.app.presentation.ui.components.rememberBiometricAvailable
 import com.template.app.presentation.viewmodel.SettingsViewModel
+import kotlinx.coroutines.launch
+
+private enum class PinCaptureMode { ENABLE, UPDATE }
 
 @Composable
 fun SettingsScreen(
@@ -29,9 +36,52 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
     var showRemoveAllConfirm by remember { mutableStateOf(false) }
     var removeTarget by remember { mutableStateOf<PairedDevice?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var showDisableBiometricsConfirm by remember { mutableStateOf(false) }
+    var showPinCapture by remember { mutableStateOf(false) }
+    var pinCaptureMode by remember { mutableStateOf(PinCaptureMode.ENABLE) }
+    val biometricAvailable = rememberBiometricAvailable()
+    val biometricAuth = rememberBiometricAuth()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    fun startEnableBiometrics() {
+        if (!biometricAvailable || biometricAuth == null) {
+            scope.launch {
+                snackbarHostState.showSnackbar("Biometrics are not available on this device")
+            }
+            return
+        }
+        biometricAuth.authenticate(
+            title = "Enable biometrics",
+            subtitle = "Verify your identity to store an agent PIN",
+            onSuccess = {
+                pinCaptureMode = PinCaptureMode.ENABLE
+                showPinCapture = true
+            },
+            onErrorOrCancel = { }
+        )
+    }
+
+    fun startUpdatePin() {
+        if (biometricAuth == null) {
+            scope.launch {
+                snackbarHostState.showSnackbar("Biometrics are not available on this device")
+            }
+            return
+        }
+        biometricAuth.authenticate(
+            title = "Update agent PIN",
+            subtitle = "Verify your identity to change the stored PIN",
+            onSuccess = {
+                pinCaptureMode = PinCaptureMode.UPDATE
+                showPinCapture = true
+            },
+            onErrorOrCancel = { }
+        )
+    }
 
     if (state.renameTargetId != null) {
         val target = state.pairedDevices.find { it.id == state.renameTargetId }
@@ -101,6 +151,40 @@ fun SettingsScreen(
         )
     }
 
+    if (showDisableBiometricsConfirm) {
+        VelaConfirmationSheet(
+            onDismiss = { showDisableBiometricsConfirm = false },
+            onConfirm = {
+                viewModel.disableBiometrics()
+                showDisableBiometricsConfirm = false
+            },
+            title = "Disable biometrics?",
+            message = "Stored agent PIN will be removed. Confirm and PIN prompts will use sheets again.",
+            confirmText = "Disable",
+            isDanger = true,
+            icon = Icons.Default.Fingerprint
+        )
+    }
+
+    if (showPinCapture) {
+        VelaPinSheet(
+            onDismiss = { showPinCapture = false },
+            onSubmit = { pin ->
+                when (pinCaptureMode) {
+                    PinCaptureMode.ENABLE -> viewModel.enableBiometrics(pin)
+                    PinCaptureMode.UPDATE -> viewModel.updateBiometricPin(pin)
+                }
+                showPinCapture = false
+            },
+            title = if (pinCaptureMode == PinCaptureMode.ENABLE) {
+                "Agent PIN for biometric unlock"
+            } else {
+                "Update agent PIN"
+            }
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -186,6 +270,82 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.outlineVariant
         )
 
+        SectionHeader(title = "SECURITY")
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Biometric unlock",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    if (!biometricAvailable) {
+                        "No biometrics enrolled on this device"
+                    } else {
+                        "Use fingerprint or face for confirms and chat PIN"
+                    },
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            Switch(
+                checked = state.biometricsEnabled,
+                enabled = biometricAvailable || state.biometricsEnabled,
+                onCheckedChange = { enabled ->
+                    if (enabled) {
+                        startEnableBiometrics()
+                    } else {
+                        showDisableBiometricsConfirm = true
+                    }
+                }
+            )
+        }
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+
+        if (state.biometricsEnabled) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = { startUpdatePin() })
+                    .padding(vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Password,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "Update agent PIN",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 22.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+
         SectionHeader(title = "ABOUT")
         AboutRow(label = "App version", value = "1.4.2")
         AboutRow(label = "Agent version", value = state.agentVersion)
@@ -231,6 +391,12 @@ fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
     }
 }
 

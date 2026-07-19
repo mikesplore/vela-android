@@ -8,4 +8,8 @@ interface SettingsRepository {
     fun observeSettings(): Flow<ConnectionSettings>
     suspend fun getSettings(): ConnectionSettings
     suspend fun saveTheme(themeMode: AppThemeMode)
+    suspend fun enableBiometrics(pin: String)
+    suspend fun disableBiometrics()
+    suspend fun updateBiometricPin(pin: String)
+    fun getStoredPin(): String?
 }

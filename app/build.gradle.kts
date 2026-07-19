@@ -116,6 +116,9 @@ dependencies {
     implementation("com.mikepenz:multiplatform-markdown-renderer-m3-android:0.27.0")
     implementation("com.squareup.moshi:moshi-adapters:1.15.2")
 
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.security.crypto)
+
     testImplementation(libs.bundles.testing)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

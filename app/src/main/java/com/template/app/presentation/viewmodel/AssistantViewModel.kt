@@ -4,19 +4,24 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
-import com.template.app.domain.model.AssistantChatMessage
+import com.template.app.domain.model.SecureReplyKind
 import com.template.app.domain.repository.AssistantRepository
+import com.template.app.domain.repository.SettingsRepository
+import com.template.app.domain.usecase.GetSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AssistantState(
-    val messages: List<AssistantChatMessage> = emptyList(),
+    val messages: List<com.template.app.domain.model.AssistantChatMessage> = emptyList(),
     val isLoading: Boolean = false,
     val isInitialLoading: Boolean = true,
     val inputText: String = ""
@@ -25,11 +30,17 @@ data class AssistantState(
 @HiltViewModel
 class AssistantViewModel @Inject constructor(
     private val repository: AssistantRepository,
+    private val settingsRepository: SettingsRepository,
+    getSettingsUseCase: GetSettingsUseCase,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AssistantState())
     val state = _state.asStateFlow()
+
+    val biometricsEnabled = getSettingsUseCase()
+        .map { it.biometricsEnabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     init {
         observeMessages()
@@ -60,7 +71,28 @@ class AssistantViewModel @Inject constructor(
             return
         }
 
-        repository.sendMessageStream(text)
+        streamMessage(text, secureReplyKind = null)
+    }
+
+    fun sendSecureReply(wireMessage: String, kind: SecureReplyKind) {
+        if (_state.value.isLoading) return
+        streamMessage(wireMessage, kind)
+    }
+
+    fun confirmAction(confirmed: Boolean) {
+        val message = if (confirmed) "yes" else "cancel"
+        val kind = if (confirmed) SecureReplyKind.CONFIRMED else SecureReplyKind.CANCELLED
+        sendSecureReply(message, kind)
+    }
+
+    fun submitPin(pin: String) {
+        sendSecureReply(pin, SecureReplyKind.PIN_VERIFIED)
+    }
+
+    fun getStoredPin(): String? = settingsRepository.getStoredPin()
+
+    private fun streamMessage(wireMessage: String, secureReplyKind: SecureReplyKind?) {
+        repository.sendMessageStream(wireMessage, secureReplyKind)
             .onEach { result ->
                 when (result) {
                     is Resource.Loading -> {
@@ -76,17 +108,6 @@ class AssistantViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
-    }
-
-    fun confirmAction(confirmed: Boolean) {
-        val message = if (confirmed) "yes" else "cancel"
-        _state.update { it.copy(inputText = message) }
-        sendMessage()
-    }
-
-    fun submitPin(pin: String) {
-        _state.update { it.copy(inputText = pin) }
-        sendMessage()
     }
 
     fun clearChat() {

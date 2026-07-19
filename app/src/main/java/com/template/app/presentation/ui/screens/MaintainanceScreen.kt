@@ -31,7 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.template.app.domain.model.VelaPackageUpdate
 import com.template.app.domain.model.VelaService
 import com.template.app.presentation.ui.components.SectionHeader
-import com.template.app.presentation.ui.components.VelaConfirmationSheet
+import com.template.app.presentation.ui.components.SecureConfirmGate
 import com.template.app.presentation.ui.theme.DarkSuccess
 import com.template.app.presentation.ui.theme.DarkWarning
 import com.template.app.presentation.ui.theme.LightSuccess
@@ -177,7 +177,8 @@ fun MaintenanceScreen(
     }
 
     if (showUpdateConfirm) {
-        VelaConfirmationSheet(
+        SecureConfirmGate(
+            visible = true,
             onDismiss = { showUpdateConfirm = false },
             onConfirm = { viewModel.runUpdates() },
             title = "Apply system updates?",
@@ -188,7 +189,9 @@ fun MaintenanceScreen(
             },
             confirmText = "Update",
             icon = Icons.Default.SystemUpdate,
-            isDanger = false
+            isDanger = false,
+            biometricTitle = "Apply system updates",
+            biometricSubtitle = "Confirm package updates on the host"
         )
     }
 }

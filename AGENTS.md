@@ -61,6 +61,7 @@ vela-android/
 | DI | `core/di/` | Hilt modules |
 | Network infra | `core/network/` | Interceptors (`VelaInterceptor` uses active device), adapters, errors |
 | Sync | `core/sync/DataSyncManager.kt` | Background sync for active device only |
+| Security | `core/security/` | `BiometricAuthenticator`, `BiometricCredentialStore` (encrypted agent PIN) |
 | Utils | `core/utils/` | `Resource`, `SafeApiCall`, `AppEventManager` |
 
 ## Entry & navigation
@@ -73,7 +74,7 @@ vela-android/
 | Routes + `NavHost` | `presentation/ui/AppNavHost.kt` (`Routes` object) |
 | Tab shell | `presentation/ui/screens/MainScreen.kt` |
 | Theme | `presentation/ui/theme/{Color,Theme,Type}.kt` |
-| Shared UI | `presentation/ui/components/` (`DeviceSwitcherSheet`, …) |
+| Shared UI | `presentation/ui/components/` (`DeviceSwitcherSheet`, `SecureConfirmGate`, `BiometricAuth`, …) |
 | Uptime display | `DashboardComponents.kt` → `StatusCard` (segmented hrs/min/sec or days/hrs/min) |
 
 ### Routes (from `AppNavHost.kt`)
@@ -92,7 +93,7 @@ Flows: `onboarding` → `main`; `add_device` (pair additional agent); start dest
 | Use cases / pairing | `domain/usecase/DeviceUseCases.kt` (`PairDeviceUseCase`, switch/rename/remove) |
 | Active session | `core/device/ActiveConnectionProvider.kt` |
 | API auth | `core/network/VelaInterceptor.kt` → active device relay URL + `X-Secret` |
-| App prefs (theme only) | `SettingsEntity` / `ConnectionSettings` / `SettingsRepository` |
+| App prefs | `SettingsEntity` / `ConnectionSettings` / `SettingsRepository` (theme + `biometricsEnabled`; PIN in `BiometricCredentialStore`) |
 | Legacy upgrade | `LegacyConnectionMigrator.kt` + `LegacyConnectionRestorer.kt` (v25 → v26) |
 | Add device UI | `screens/AddDeviceScreen.kt`, `AddDeviceViewModel.kt` |
 | Device switcher UI | `MainActivity` top-bar chip (beside health) → `DeviceSwitcherSheet`; manage list in `SettingsScreen` (flat rows) |
@@ -108,20 +109,20 @@ For a feature, open Screen → ViewModel → domain repo → impl → API/DAO. N
 |---------|--------|-----------|-------------|------|-------|
 | Dashboard / health | `screens/DashboardScreen.kt` (+ `DashboardComponents.kt`) | `DashboardViewModel.kt` | `HealthRepository`, `MonitorRepository`, … | matching `*RepositoryImpl` | Segmented uptime; sync via `DataSyncManager`; device switch is in `MainActivity` top bar |
 | Top-bar devices | `MainActivity.kt` | `MainViewModel.kt` | `DeviceRepository` | | Chip beside health → `DeviceSwitcherSheet` |
-| Chat / assistant | `screens/chat/` | `AssistantViewModel.kt` | `AssistantRepository` | `AssistantRepositoryImpl` | Chat scoped per `connectionId` |
+| Chat / assistant | `screens/chat/` (`AuthResultCard` in `Bubble.kt`) | `AssistantViewModel.kt` | `AssistantRepository` | `AssistantRepositoryImpl` | Chat scoped per `connectionId`; secure replies (`yes`/`cancel`/PIN) show `AuthResultCard`; biometrics when enabled |
 | Display | `screens/DisplayScreen.kt` | `DisplayViewModel.kt` | `DisplayRepository` | `DisplayRepositoryImpl` | |
 | Audio | `screens/AudioScreen.kt` | `AudioViewModel.kt` | `AudioRepository` | `AudioRepositoryImpl` | |
 | Network | `screens/NetworkScreen.kt` | `NetworkViewModel.kt` | `NetworkRepository` | `NetworkRepositoryImpl` | |
 | Network logs | `screens/NetworkLogsScreen.kt` | `NetworkLogsViewModel.kt` | (network) | | |
 | Media | `screens/MediaScreen.kt` | `MediaViewModel.kt` | `MediaRepository` | `MediaRepositoryImpl` | |
-| Files | `screens/FilesScreen.kt` | `FilesViewModel.kt` | `FilesystemRepository` | `FilesystemRepositoryImpl` | |
+| Files | `screens/FilesScreen.kt` | `FilesViewModel.kt` | `FilesystemRepository` | `FilesystemRepositoryImpl` | Delete confirm via `SecureConfirmGate` (biometric when enabled) |
 | Processes | `screens/ProcessesScreen.kt` | `ProcessesViewModel.kt` | `ProcessesRepository` | `ProcessesRepositoryImpl` | |
 | Scheduler | `screens/SchedulerScreen.kt` | `SchedulerViewModel.kt` | `SchedulesRepository` | `SchedulesRepositoryImpl` | Shell jobs: create needs `command`+`args`+`run_at` (+ cron in `recurring`); optimistic Room upsert after create; list wipe only on explicit `jobs`/`tasks` array |
-| Maintenance | `screens/MaintainanceScreen.kt` | `MaintainanceViewModel.kt` | `MaintenanceRepository` | `MaintenanceRepositoryImpl` | Filename spelling: Maintainance; all services in Room (`vela_services`); UI shows 5 + search; logs on expand |
-| Power | `screens/PowerScreen.kt` | `PowerViewModel.kt` | `PowerRepository` | `PowerRepositoryImpl` | |
+| Maintenance | `screens/MaintainanceScreen.kt` | `MaintainanceViewModel.kt` | `MaintenanceRepository` | `MaintenanceRepositoryImpl` | Filename spelling: Maintainance; all services in Room (`vela_services`); UI shows 5 + search; logs on expand; updates confirm via `SecureConfirmGate` |
+| Power | `screens/PowerScreen.kt` | `PowerViewModel.kt` | `PowerRepository` | `PowerRepositoryImpl` | Power confirms via `SecureConfirmGate` |
 | Clipboard | `screens/ClipboardScreen.kt` | `ClipboardViewModel.kt` | `ClipboardRepository` | `ClipboardRepositoryImpl` | |
 | Monitor | `screens/MonitorScreen.kt` | `MonitorViewModel.kt` | `MonitorRepository` | `MonitorRepositoryImpl` | Disk/net I/O + processes via direct `GET /monitor/disk-io`, `/network-io`, `/processes` (not snapshot-only) |
-| Settings / devices | `screens/SettingsScreen.kt` | `SettingsViewModel.kt` | `DeviceRepository`, `SettingsRepository` | | Devices list, add/remove/switch |
+| Settings / devices | `screens/SettingsScreen.kt` | `SettingsViewModel.kt` | `DeviceRepository`, `SettingsRepository` | | Devices list, add/remove/switch; SECURITY section enables biometrics + stores agent PIN |
 | Onboarding / pair first | `screens/onboarding/` | `OnboardingViewModel.kt` | `PairDeviceUseCase` | | Does **not** wipe existing devices |
 | Add device | `screens/AddDeviceScreen.kt` | `AddDeviceViewModel.kt` | `PairDeviceUseCase` | | Appends + activates |
 | Users | (via settings/main) | `UsersViewModel.kt` | `UserRepository` | `UserRepositoryImpl` | Template API; unused for relay auth |
@@ -131,7 +132,7 @@ For a feature, open Screen → ViewModel → domain repo → impl → API/DAO. N
 
 | Kind | Path |
 |------|------|
-| Room DB | `core/data/local/AppDatabase.kt` (v27), `Converters.kt` |
+| Room DB | `core/data/local/AppDatabase.kt` (v28), `Converters.kt` |
 | DAOs | `dao/{PairedDevice,Assistant,Settings,User,Vela}Dao.kt` |
 | Entities | `entities/` — Vela bulk in `VelaEntities.kt` (all scoped by `connectionId`) |
 | Preferences | `core/data/local/UserPreferencesDataStore.kt` |

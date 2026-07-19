@@ -9,9 +9,11 @@ import com.template.app.domain.model.VelaBreadcrumb
 import com.template.app.domain.model.VelaDiskUsage
 import com.template.app.domain.model.VelaFileInfo
 import com.template.app.domain.repository.FilesystemRepository
+import com.template.app.domain.usecase.ObserveActiveDeviceUseCase
 import com.template.app.domain.usecase.ObserveVelaConfigUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
@@ -36,43 +38,64 @@ data class FilesState(
 class FilesViewModel @Inject constructor(
     private val repository: FilesystemRepository,
     private val observeVelaConfigUseCase: ObserveVelaConfigUseCase,
+    private val observeActiveDeviceUseCase: ObserveActiveDeviceUseCase,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 
     private val _currentPath = MutableStateFlow<String?>(null)
-    
+    private var loadJob: Job? = null
+
     private val _state = MutableStateFlow(FilesState())
     val state: StateFlow<FilesState> = _state.asStateFlow()
 
     init {
-        loadDisks()
-        
         repository.observeDisks()
             .onEach { disks -> _state.update { it.copy(disks = disks) } }
             .launchIn(viewModelScope)
-
-        viewModelScope.launch {
-            observeVelaConfigUseCase()
-                .filterNotNull()
-                .firstOrNull()?.let { config ->
-                    if (_currentPath.value == null) {
-                        loadFiles(config.homeDirectory)
-                    }
-                }
-        }
 
         @OptIn(ExperimentalCoroutinesApi::class)
         _currentPath
             .filterNotNull()
             .distinctUntilChanged()
-            .flatMapLatest { path -> 
+            .flatMapLatest { path ->
                 Log.d("FilesViewModel", "Observing path: $path")
-                repository.observeFiles(path) 
+                repository.observeFiles(path)
             }
-            .onEach { files -> 
-                _state.update { it.copy(files = files) } 
+            .onEach { files ->
+                _state.update { it.copy(files = files) }
             }
             .launchIn(viewModelScope)
+
+        // Path is host-specific — reset when the active device changes
+        observeActiveDeviceUseCase()
+            .map { it?.id }
+            .distinctUntilChanged()
+            .filterNotNull()
+            .onEach { resetBrowserForHost() }
+            .launchIn(viewModelScope)
+    }
+
+    private fun resetBrowserForHost() {
+        loadJob?.cancel()
+        _currentPath.value = null
+        _state.update {
+            it.copy(
+                currentPath = "",
+                parentPath = null,
+                files = emptyList(),
+                breadcrumbs = emptyList(),
+                disks = emptyList(),
+                error = null,
+                searchQuery = "",
+                isLoading = true,
+                isRefreshing = false
+            )
+        }
+        loadDisks()
+        viewModelScope.launch {
+            val home = observeVelaConfigUseCase().firstOrNull()?.homeDirectory
+            loadFiles(home)
+        }
     }
 
     fun loadFiles(path: String?, showHidden: Boolean = _state.value.showHidden) {
@@ -89,7 +112,8 @@ class FilesViewModel @Inject constructor(
 
         _currentPath.value = requestedPath
 
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             val result = repository.listFiles(path, showHidden)
             if (result is Resource.Success) {
                 val data = result.data

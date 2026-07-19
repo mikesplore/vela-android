@@ -17,8 +17,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.template.app.domain.model.AssistantChatMessage
+import com.template.app.domain.model.SecureReplyKind
 import com.template.app.presentation.ui.components.VelaConfirmationSheet
 import com.template.app.presentation.ui.components.VelaPinSheet
+import com.template.app.presentation.ui.components.rememberBiometricAuth
+import com.template.app.presentation.ui.components.rememberBiometricAvailable
 import com.template.app.presentation.viewmodel.AssistantViewModel
 import kotlinx.coroutines.launch
 
@@ -28,49 +31,79 @@ fun ChatScreen(
     viewModel: AssistantViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val biometricsEnabled by viewModel.biometricsEnabled.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val biometricAvailable = rememberBiometricAvailable()
+    val biometricAuth = rememberBiometricAuth()
 
-    // Sheet States
     var confirmationMessage by remember { mutableStateOf<AssistantChatMessage?>(null) }
     var pinMessage by remember { mutableStateOf<AssistantChatMessage?>(null) }
+    var handledGateMessageId by remember { mutableStateOf<String?>(null) }
 
-    // Simplified list: reversed for better keyboard behavior
     val displayMessages = remember(state.messages) {
         state.messages.reversed()
     }
 
-    // Auto-scroll and Sheet Trigger for new messages or loading state changes
+    val useBiometrics = biometricsEnabled && biometricAvailable && biometricAuth != null
+
     LaunchedEffect(state.messages.size, state.isLoading) {
         if (state.messages.isNotEmpty() || state.isLoading) {
-            // Always scroll to bottom (index 0 in reverse layout)
             listState.animateScrollToItem(0)
         }
 
-        // Trigger sheets for the latest assistant message based on required actions
         val lastMessage = state.messages.lastOrNull()
-        if (lastMessage != null && !lastMessage.isUser) {
-            val isPinRequired = lastMessage.isPinRequired
-            val requiresAuth = lastMessage.confirmation?.requiresAuth == true
-
-            when {
-                isPinRequired || requiresAuth -> {
-                    pinMessage = lastMessage
-                    confirmationMessage = null
-                }
-                lastMessage.confirmation != null -> {
-                    confirmationMessage = lastMessage
-                    pinMessage = null
-                }
-                else -> {
-                    confirmationMessage = null
-                    pinMessage = null
-                }
-            }
-        } else {
-            // Clear sheets when user is typing or last message is from user
+        if (lastMessage == null || lastMessage.isUser || state.isLoading) {
             confirmationMessage = null
             pinMessage = null
+            return@LaunchedEffect
+        }
+
+        if (handledGateMessageId == lastMessage.id) return@LaunchedEffect
+
+        val isPinRequired = lastMessage.isPinRequired || lastMessage.confirmation?.requiresAuth == true
+        val needsConfirm = lastMessage.confirmation != null && !isPinRequired
+
+        when {
+            useBiometrics && (isPinRequired || needsConfirm) -> {
+                handledGateMessageId = lastMessage.id
+                confirmationMessage = null
+                pinMessage = null
+                biometricAuth!!.authenticate(
+                    title = if (isPinRequired) "Verification required" else "Confirm action",
+                    subtitle = lastMessage.confirmation?.title
+                        ?: if (isPinRequired) "Authenticate to continue" else "Confirm this action",
+                    onSuccess = {
+                        if (isPinRequired) {
+                            val pin = viewModel.getStoredPin()
+                            if (pin.isNullOrBlank()) {
+                                pinMessage = lastMessage
+                            } else {
+                                viewModel.submitPin(pin)
+                            }
+                        } else {
+                            viewModel.confirmAction(true)
+                        }
+                    },
+                    onErrorOrCancel = {
+                        viewModel.sendSecureReply("cancel", SecureReplyKind.CANCELLED)
+                    }
+                )
+            }
+            isPinRequired -> {
+                handledGateMessageId = lastMessage.id
+                pinMessage = lastMessage
+                confirmationMessage = null
+            }
+            needsConfirm -> {
+                handledGateMessageId = lastMessage.id
+                confirmationMessage = lastMessage
+                pinMessage = null
+            }
+            else -> {
+                confirmationMessage = null
+                pinMessage = null
+            }
         }
     }
 
@@ -101,7 +134,6 @@ fun ChatScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Bottom)
                     ) {
-                        // In reverseLayout = true, items defined first appear at the bottom
                         if (state.isLoading) {
                             item(key = "typing-indicator") {
                                 TypingIndicator()
@@ -134,7 +166,6 @@ fun ChatScreen(
             )
         }
 
-        // Scroll to bottom button
         val showScrollToBottom by remember {
             derivedStateOf { listState.firstVisibleItemIndex > 2 }
         }
@@ -153,7 +184,6 @@ fun ChatScreen(
         }
     }
 
-    // Confirmation Sheet
     confirmationMessage?.let { msg ->
         msg.confirmation?.let { conf ->
             VelaConfirmationSheet(
@@ -175,7 +205,6 @@ fun ChatScreen(
         }
     }
 
-    // PIN Sheet
     pinMessage?.let {
         VelaPinSheet(
             onDismiss = { pinMessage = null },
