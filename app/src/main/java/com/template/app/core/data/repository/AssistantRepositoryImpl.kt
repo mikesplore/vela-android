@@ -183,6 +183,17 @@ class AssistantRepositoryImpl @Inject constructor(
                                             nextImageBase64 = event.imageBase64
                                             msg
                                         }
+                                        is VelaStreamEvent.Error -> {
+                                            val errorText = event.text.ifBlank {
+                                                NetworkErrors.GENERIC_ERROR
+                                            }
+                                            val reply = if (msg.text.isBlank()) {
+                                                "Sorry — I couldn't complete that request.\n\n$errorText"
+                                            } else {
+                                                "${msg.text}\n\nRequest failed: $errorText"
+                                            }
+                                            msg.copy(text = reply, isStreaming = false)
+                                        }
                                         is VelaStreamEvent.Done -> {
                                             nextImageBase64 = event.imageBase64
                                             msg.copy(

@@ -39,6 +39,11 @@ sealed class VelaStreamEvent {
     data class Screenshot(
         @Json(name = "image_base64") val imageBase64: String? = null
     ) : VelaStreamEvent()
+
+    @JsonClass(generateAdapter = true)
+    data class Error(
+        val text: String
+    ) : VelaStreamEvent()
     
     @JsonClass(generateAdapter = true)
     data class Done(

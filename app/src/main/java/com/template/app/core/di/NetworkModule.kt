@@ -46,6 +46,7 @@ object NetworkModule {
                 .withSubtype(VelaStreamEvent.Content::class.java, "content")
                 .withSubtype(VelaStreamEvent.Gate::class.java, "gate")
                 .withSubtype(VelaStreamEvent.Screenshot::class.java, "screenshot")
+                .withSubtype(VelaStreamEvent.Error::class.java, "error")
                 .withSubtype(VelaStreamEvent.Done::class.java, "done")
         )
         .add(BooleanIntAdapter())
