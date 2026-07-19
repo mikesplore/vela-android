@@ -63,8 +63,8 @@ class AssistantRepositoryImpl @Inject constructor(
     override fun sendMessageStream(
         message: String,
         secureReplyKind: SecureReplyKind?
-    ): Flow<Resource<Unit>> = flow {
-        emit(Resource.Loading)
+    ): Flow<AssistantSendEvent> = flow {
+        emit(AssistantSendEvent.Phase(AssistantSendPhase.Preparing))
 
         var connectionId: Long? = null
         var currentAssistantMsg: AssistantChatMessage? = null
@@ -72,7 +72,6 @@ class AssistantRepositoryImpl @Inject constructor(
         try {
             connectionId = activeConnection.requireActiveId()
 
-            // Persist display-safe text for secure replies (never store PIN digits in Room)
             val displayText = when (secureReplyKind) {
                 SecureReplyKind.PIN_VERIFIED -> ""
                 SecureReplyKind.CONFIRMED, SecureReplyKind.CANCELLED -> ""
@@ -85,7 +84,6 @@ class AssistantRepositoryImpl @Inject constructor(
             )
             assistantDao.upsertMessage(AssistantMessageEntity.fromDomain(connectionId, userMsg, moshi))
 
-            // Assistant placeholder — filled by stream events, or error text on failure
             currentAssistantMsg = AssistantChatMessage(
                 id = UUID.randomUUID().toString(),
                 text = "",
@@ -96,10 +94,14 @@ class AssistantRepositoryImpl @Inject constructor(
                 AssistantMessageEntity.fromDomain(connectionId, currentAssistantMsg, moshi)
             )
 
+            emit(AssistantSendEvent.Phase(AssistantSendPhase.Connecting))
+
             val responseBody = apiService.assistantStream(
                 sessionId = sessionId,
                 body = AssistantRequest(message = message)
             )
+
+            emit(AssistantSendEvent.Phase(AssistantSendPhase.Streaming))
 
             responseBody.source().use { source ->
                 var currentEvent: String? = null
@@ -233,11 +235,11 @@ class AssistantRepositoryImpl @Inject constructor(
                 }
             }
 
-            emit(Resource.Success(Unit))
+            emit(AssistantSendEvent.Finished(Resource.Success(Unit)))
         } catch (e: Exception) {
             val errorMessage = mapStreamError(e)
             persistAssistantError(connectionId, currentAssistantMsg, errorMessage)
-            emit(Resource.Error(errorMessage))
+            emit(AssistantSendEvent.Finished(Resource.Error(errorMessage)))
         }
     }.flowOn(Dispatchers.IO)
 

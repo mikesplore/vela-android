@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.template.app.domain.model.AssistantSendPhase
 
 private val SUGGESTIONS = listOf(
     "What's my CPU usage?" to Icons.Default.Memory,
@@ -70,46 +71,66 @@ fun ScrollToBottomButton(onClick: () -> Unit) {
 }
 
 @Composable
-fun TypingIndicator(modifier: Modifier = Modifier) {
+fun TypingIndicator(
+    statusLabel: String? = null,
+    modifier: Modifier = Modifier
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "typing")
 
-    Row(modifier = modifier, horizontalArrangement = Arrangement.Start) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(
-                topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp
-            )
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.Start) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(
+                    topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp
+                )
             ) {
-                repeat(3) { index ->
-                    // Each dot has a different delay based on its index
-                    val alpha by infiniteTransition.animateFloat(
-                        initialValue = 0.2f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(600, easing = LinearOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse,
-                            initialStartOffset = StartOffset(index * 200) // Stagger effect
-                        ),
-                        label = "dotAlpha"
-                    )
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(3) { index ->
+                        val alpha by infiniteTransition.animateFloat(
+                            initialValue = 0.2f,
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(600, easing = LinearOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse,
+                                initialStartOffset = StartOffset(index * 200)
+                            ),
+                            label = "dotAlpha"
+                        )
 
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha),
-                                CircleShape
-                            )
-                    )
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha),
+                                    CircleShape
+                                )
+                        )
+                    }
                 }
             }
         }
+
+        if (!statusLabel.isNullOrBlank()) {
+            Text(
+                text = statusLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
     }
+}
+
+fun AssistantSendPhase.statusLabel(): String? = when (this) {
+    AssistantSendPhase.Preparing -> "Preparing…"
+    AssistantSendPhase.Connecting -> "Connecting…"
+    AssistantSendPhase.Streaming -> "Streaming…"
+    AssistantSendPhase.Idle -> null
 }
 
 @Composable

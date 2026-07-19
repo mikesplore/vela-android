@@ -58,6 +58,14 @@ enum class SecureReplyKind {
     PIN_VERIFIED
 }
 
+/** Local send lifecycle for chat — not persisted. */
+enum class AssistantSendPhase {
+    Idle,
+    Preparing,
+    Connecting,
+    Streaming
+}
+
 data class AssistantChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val text: String,

@@ -118,9 +118,10 @@ fun MessageBubble(
 
                 if (hasToolCalls) {
                     Spacer(Modifier.height(4.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        message.toolCalls.forEach { ToolRow(it) }
-                    }
+                    ToolCallsBlock(
+                        tools = message.toolCalls,
+                        messageId = message.id
+                    )
                     Spacer(Modifier.height(8.dp))
                 }
 
@@ -240,6 +241,78 @@ private fun ThinkingBlock(thinkingText: String) {
             }
         }
     }
+}
+
+@Composable
+private fun ToolCallsBlock(tools: List<ToolCall>, messageId: String) {
+    val collapseThreshold = 3
+    val isCollapsible = tools.size >= collapseThreshold
+    var expanded by remember(messageId) { mutableStateOf(!isCollapsible) }
+
+    if (!isCollapsible) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            tools.forEach { ToolRow(it) }
+        }
+        return
+    }
+
+    val runningCount = tools.count { !it.isTerminal() }
+    val summary = buildString {
+        append("${tools.size} tools")
+        if (runningCount > 0) append(" · $runningCount running")
+    }
+
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { expanded = !expanded }
+                .padding(vertical = 4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                        CircleShape
+                    )
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = summary,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                letterSpacing = 0.01.sp
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = if (expanded) "⌄" else "›",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier.padding(start = 13.dp, bottom = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                tools.forEach { ToolRow(it) }
+            }
+        }
+    }
+}
+
+private fun ToolCall.isTerminal(): Boolean {
+    val status = status.lowercase()
+    return status in listOf("done", "completed", "success", "error", "failed")
 }
 
 @Composable

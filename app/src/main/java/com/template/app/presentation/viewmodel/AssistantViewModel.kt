@@ -2,7 +2,8 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.template.app.core.utils.Resource
+import com.template.app.domain.model.AssistantSendEvent
+import com.template.app.domain.model.AssistantSendPhase
 import com.template.app.domain.model.SecureReplyKind
 import com.template.app.domain.repository.AssistantRepository
 import com.template.app.domain.repository.SettingsRepository
@@ -23,7 +24,8 @@ data class AssistantState(
     val messages: List<com.template.app.domain.model.AssistantChatMessage> = emptyList(),
     val isLoading: Boolean = false,
     val isInitialLoading: Boolean = true,
-    val inputText: String = ""
+    val inputText: String = "",
+    val sendPhase: AssistantSendPhase = AssistantSendPhase.Idle
 )
 
 @HiltViewModel
@@ -90,18 +92,24 @@ class AssistantViewModel @Inject constructor(
     fun getStoredPin(): String? = settingsRepository.getStoredPin()
 
     private fun streamMessage(wireMessage: String, secureReplyKind: SecureReplyKind?) {
+        _state.update {
+            it.copy(
+                inputText = "",
+                isLoading = true,
+                sendPhase = AssistantSendPhase.Preparing
+            )
+        }
+
         repository.sendMessageStream(wireMessage, secureReplyKind)
-            .onEach { result ->
-                when (result) {
-                    is Resource.Loading -> {
-                        _state.update { it.copy(inputText = "", isLoading = true) }
+            .onEach { event ->
+                when (event) {
+                    is AssistantSendEvent.Phase -> {
+                        _state.update { it.copy(isLoading = true, sendPhase = event.phase) }
                     }
-                    is Resource.Success -> {
-                        _state.update { it.copy(isLoading = false) }
-                    }
-                    is Resource.Error -> {
-                        // Error text is persisted as an assistant reply in the transcript
-                        _state.update { it.copy(isLoading = false) }
+                    is AssistantSendEvent.Finished -> {
+                        _state.update {
+                            it.copy(isLoading = false, sendPhase = AssistantSendPhase.Idle)
+                        }
                     }
                 }
             }

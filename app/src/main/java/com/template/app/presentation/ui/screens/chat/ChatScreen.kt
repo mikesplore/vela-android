@@ -136,7 +136,9 @@ fun ChatScreen(
                     ) {
                         if (state.isLoading) {
                             item(key = "typing-indicator") {
-                                TypingIndicator()
+                                TypingIndicator(
+                                    statusLabel = state.sendPhase.statusLabel()
+                                )
                             }
                         }
 
