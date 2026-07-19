@@ -2,7 +2,6 @@ package com.template.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.SecureReplyKind
 import com.template.app.domain.repository.AssistantRepository
@@ -31,8 +30,7 @@ data class AssistantState(
 class AssistantViewModel @Inject constructor(
     private val repository: AssistantRepository,
     private val settingsRepository: SettingsRepository,
-    getSettingsUseCase: GetSettingsUseCase,
-    private val appEventManager: AppEventManager
+    getSettingsUseCase: GetSettingsUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AssistantState())
@@ -102,7 +100,7 @@ class AssistantViewModel @Inject constructor(
                         _state.update { it.copy(isLoading = false) }
                     }
                     is Resource.Error -> {
-                        appEventManager.showActionErrorSnackbar(result.message)
+                        // Error text is persisted as an assistant reply in the transcript
                         _state.update { it.copy(isLoading = false) }
                     }
                 }
