@@ -499,9 +499,9 @@ interface VelaDao {
 
     @Transaction
     suspend fun replaceFiles(connectionId: Long, parentPath: String, files: List<VelaFileEntity>) {
-        if (files.isEmpty()) {
-            clearFiles(connectionId, parentPath)
-        } else {
+        // Always clear first so deletes/renames on the host drop stale Room rows
+        clearFiles(connectionId, parentPath)
+        if (files.isNotEmpty()) {
             upsertFiles(files)
         }
     }
