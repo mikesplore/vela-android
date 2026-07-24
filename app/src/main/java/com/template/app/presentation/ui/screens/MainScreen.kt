@@ -156,12 +156,9 @@ fun MainScreen(
                 composable(Routes.NETWORK_LOGS) { NetworkLogsScreen() }
                 composable(Routes.CLIPBOARD) { ClipboardScreen() }
                 composable(Routes.INPUT_CONTROL) { InputControlScreen() }
-                composable(Routes.NOTIFICATIONS) { NotificationsScreen() }
+                composable(Routes.NOTIFICATIONS) { AlertsScreen() }
                 composable(Routes.DOCKER) {
                     DockerScreen()
-                }
-                composable(Routes.PUSH) {
-                    PushScreen(onBack = { navController.popBackStack() })
                 }
                 composable(Routes.SETTINGS) {
                     SettingsScreen(
@@ -258,7 +255,6 @@ fun MoreMenuGrid(
         NavigationItem("Power", Routes.POWER, Icons.Default.PowerSettingsNew),
         NavigationItem("Clipboard", Routes.CLIPBOARD, Icons.Default.ContentPaste),
         NavigationItem("Docker", Routes.DOCKER, Icons.Default.Storage),
-        NavigationItem("Push", Routes.PUSH, Icons.Default.PhoneAndroid),
         NavigationItem("Alerts", Routes.NOTIFICATIONS, Icons.Default.Notifications),
         NavigationItem("Settings", Routes.SETTINGS, Icons.Default.Settings),
         NavigationItem("Network Logs", Routes.NETWORK_LOGS, Icons.AutoMirrored.Filled.List)

@@ -789,3 +789,30 @@ data class PushDeviceRequest(
 data class PushDeviceDeleteRequest(
     val token: String
 )
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+
+@JsonClass(generateAdapter = true)
+data class AlertHistoryResponse(
+    val alerts: List<AlertDeliveryDto> = emptyList(),
+    @Json(name = "total_stored") val totalStored: Int? = null,
+    @Json(name = "today_count") val todayCount: Int? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class AlertDeliveryDto(
+    val id: Long? = null,
+    @Json(name = "created_at") val createdAt: String? = null,
+    @Json(name = "alert_kind") val alertKind: String? = null,
+    val channel: String? = null,
+    val status: String? = null,
+    val title: String? = null,
+    val body: String? = null,
+    @Json(name = "email_to") val emailTo: String? = null,
+    @Json(name = "email_provider_id") val emailProviderId: String? = null,
+    @Json(name = "push_delivered") val pushDelivered: Int? = null,
+    @Json(name = "alert_type") val alertType: String? = null,
+    val value: Double? = null,
+    val threshold: Double? = null,
+    val resource: String? = null
+)

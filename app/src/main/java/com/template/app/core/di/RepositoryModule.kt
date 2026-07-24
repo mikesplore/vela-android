@@ -99,4 +99,8 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun providePushRepository(impl: PushRepositoryImpl): PushRepository = impl
+
+    @Provides
+    @Singleton
+    fun provideAlertsRepository(impl: AlertsRepositoryImpl): AlertsRepository = impl
 }

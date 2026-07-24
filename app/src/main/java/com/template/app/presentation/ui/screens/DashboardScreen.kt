@@ -38,21 +38,29 @@ fun DashboardScreen(
     var isFabMenuExpanded by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
-        viewModel.setFabVisible(true)
+        viewModel.setFabVisible(state.fabActions.hasAny)
         onDispose {
             viewModel.setFabVisible(false)
         }
     }
 
+    DisposableEffect(state.fabActions.hasAny) {
+        viewModel.setFabVisible(state.fabActions.hasAny)
+        onDispose { }
+    }
+
     Scaffold(
         floatingActionButton = {
-            DashboardFabMenu(
-                isExpanded = isFabMenuExpanded,
-                onToggle = { isFabMenuExpanded = !isFabMenuExpanded },
-                onScreenshot = { viewModel.takeScreenshot(); },
-                onLock = { viewModel.lockScreen(); },
-                onPlayPause = { viewModel.togglePlayPause(); }
-            )
+            if (state.fabActions.hasAny) {
+                DashboardFabMenu(
+                    isExpanded = isFabMenuExpanded,
+                    actions = state.fabActions,
+                    onToggle = { isFabMenuExpanded = !isFabMenuExpanded },
+                    onScreenshot = { viewModel.takeScreenshot() },
+                    onLock = { viewModel.lockScreen() },
+                    onPlayPause = { viewModel.togglePlayPause() }
+                )
+            }
         }
     ) {
         Column(
@@ -68,9 +76,7 @@ fun DashboardScreen(
                 visible = true,
                 enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
             ) {
-                StatusCard(
-                    uptime = state.uptime
-                )
+                StatusCard(uptime = state.uptime)
             }
 
             state.network?.let { network ->
@@ -84,14 +90,16 @@ fun DashboardScreen(
                 }
             }
 
-            state.resolution?.let { resolution ->
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(tween(450, delayMillis = 120)) + slideInVertically(
-                        tween(450, delayMillis = 120)
-                    ) { it / 4 }
-                ) {
-                    SystemResolutionCard(resolution)
+            if (state.showDisplayCard) {
+                state.resolution?.let { resolution ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(tween(450, delayMillis = 120)) + slideInVertically(
+                            tween(450, delayMillis = 120)
+                        ) { it / 4 }
+                    ) {
+                        SystemResolutionCard(resolution)
+                    }
                 }
             }
 
@@ -113,22 +121,24 @@ fun DashboardScreen(
                 }
             }
 
-            state.audio?.let { audio ->
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(tween(450, delayMillis = 240)) + slideInVertically(
-                        tween(450, delayMillis = 240)
-                    ) { it / 4 }
-                ) {
-                    AudioControlCard(
-                        audioState = audio,
-                        onVolumeChange = { viewModel.setVolume(it) },
-                        onMuteToggle = { viewModel.setMute(it) }
-                    )
+            if (state.showAudioCard) {
+                state.audio?.let { audio ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(tween(450, delayMillis = 240)) + slideInVertically(
+                            tween(450, delayMillis = 240)
+                        ) { it / 4 }
+                    ) {
+                        AudioControlCard(
+                            audioState = audio,
+                            onVolumeChange = { viewModel.setVolume(it) },
+                            onMuteToggle = { viewModel.setMute(it) }
+                        )
+                    }
                 }
             }
 
-            if (state.isConnected) {
+            if (state.showBrightnessCard && state.isConnected) {
                 AnimatedVisibility(
                     visible = true,
                     enter = fadeIn(tween(450, delayMillis = 300)) + slideInVertically(
@@ -153,17 +163,19 @@ fun DashboardScreen(
                 }
             }
 
-            state.media?.let { media ->
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(tween(450, delayMillis = 420)) + slideInVertically(
-                        tween(450, delayMillis = 420)
-                    ) { it / 4 }
-                ) {
-                    MediaBar(
-                        media = media,
-                        onTogglePlayPause = { viewModel.togglePlayPause() }
-                    )
+            if (state.showMediaBar) {
+                state.media?.let { media ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(tween(450, delayMillis = 420)) + slideInVertically(
+                            tween(450, delayMillis = 420)
+                        ) { it / 4 }
+                    ) {
+                        MediaBar(
+                            media = media,
+                            onTogglePlayPause = { viewModel.togglePlayPause() }
+                        )
+                    }
                 }
             }
 
@@ -171,7 +183,7 @@ fun DashboardScreen(
         }
     }
 
-    if (state.isScreenshotLoading || state.screenshot != null) {
+    if (state.fabActions.showScreenshot && (state.isScreenshotLoading || state.screenshot != null)) {
         ScreenshotSheet(
             bitmap = state.screenshot,
             isLoading = state.isScreenshotLoading,

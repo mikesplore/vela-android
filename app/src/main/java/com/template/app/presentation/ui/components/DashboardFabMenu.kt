@@ -24,14 +24,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+data class DashboardFabActions(
+    val showScreenshot: Boolean = false,
+    val showLock: Boolean = false,
+    val showPlayPause: Boolean = false
+) {
+    val hasAny: Boolean get() = showScreenshot || showLock || showPlayPause
+}
+
 @Composable
 fun DashboardFabMenu(
     isExpanded: Boolean,
+    actions: DashboardFabActions,
     onToggle: () -> Unit,
     onScreenshot: () -> Unit,
     onLock: () -> Unit,
     onPlayPause: () -> Unit
 ) {
+    if (!actions.hasAny) return
+
     val colorScheme = MaterialTheme.colorScheme
     val gradient = Brush.horizontalGradient(listOf(colorScheme.primary, colorScheme.secondary))
 
@@ -54,21 +65,26 @@ fun DashboardFabMenu(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OrbitalFabItem(
-                    onClick = onScreenshot,
-                    icon = Icons.Default.PhotoCamera,
-                    label = "Screenshot"
-                )
-                OrbitalFabItem(onClick = onLock, icon = Icons.Default.Lock, label = "Lock Screen")
-                OrbitalFabItem(
-                    onClick = onPlayPause,
-                    icon = Icons.Default.PlayArrow,
-                    label = "Play / Pause"
-                )
+                if (actions.showScreenshot) {
+                    OrbitalFabItem(
+                        onClick = onScreenshot,
+                        icon = Icons.Default.PhotoCamera,
+                        label = "Screenshot"
+                    )
+                }
+                if (actions.showLock) {
+                    OrbitalFabItem(onClick = onLock, icon = Icons.Default.Lock, label = "Lock Screen")
+                }
+                if (actions.showPlayPause) {
+                    OrbitalFabItem(
+                        onClick = onPlayPause,
+                        icon = Icons.Default.PlayArrow,
+                        label = "Play / Pause"
+                    )
+                }
             }
         }
 
-        // Main FAB with gradient
         Box(
             modifier = Modifier
                 .size(56.dp)

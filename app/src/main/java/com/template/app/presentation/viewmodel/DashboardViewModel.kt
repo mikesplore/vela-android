@@ -7,7 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
 import com.template.app.domain.model.*
+import com.template.app.presentation.ui.components.DashboardFabActions
 import com.template.app.domain.repository.AudioRepository
+import com.template.app.domain.repository.CapabilitiesRepository
 import com.template.app.domain.repository.DisplayRepository
 import com.template.app.domain.repository.FilesystemRepository
 import com.template.app.domain.repository.HealthRepository
@@ -47,7 +49,12 @@ data class DashboardState(
     val isScreenshotLoading: Boolean = false,
     val screenshot: Bitmap? = null,
     val activeDevice: PairedDevice? = null,
-    val pairedDevices: List<PairedDevice> = emptyList()
+    val pairedDevices: List<PairedDevice> = emptyList(),
+    val fabActions: DashboardFabActions = DashboardFabActions(),
+    val showMediaBar: Boolean = false,
+    val showAudioCard: Boolean = false,
+    val showBrightnessCard: Boolean = false,
+    val showDisplayCard: Boolean = false
 )
 
 @HiltViewModel
@@ -63,6 +70,7 @@ class DashboardViewModel @Inject constructor(
     private val observeDevicesUseCase: ObserveDevicesUseCase,
     private val observeActiveDeviceUseCase: ObserveActiveDeviceUseCase,
     private val switchDeviceUseCase: SwitchDeviceUseCase,
+    private val capabilitiesRepository: CapabilitiesRepository,
     private val appEventManager: AppEventManager
 ) : ViewModel() {
 
@@ -73,6 +81,29 @@ class DashboardViewModel @Inject constructor(
 
     init {
         observeData()
+        observeCapabilities()
+    }
+
+    private fun observeCapabilities() {
+        capabilitiesRepository.observeCapabilities()
+            .onEach { caps ->
+                val display = caps?.isModuleAvailable(ModuleKeys.DISPLAY) == true
+                val media = caps?.isModuleAvailable(ModuleKeys.MEDIA) == true
+                _state.update {
+                    it.copy(
+                        fabActions = DashboardFabActions(
+                            showScreenshot = display,
+                            showLock = display,
+                            showPlayPause = media
+                        ),
+                        showMediaBar = media,
+                        showAudioCard = caps?.isModuleAvailable(ModuleKeys.AUDIO) == true,
+                        showBrightnessCard = display,
+                        showDisplayCard = display
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun setFabVisible(visible: Boolean) {

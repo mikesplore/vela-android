@@ -125,7 +125,8 @@ For a feature, open Screen → ViewModel → domain repo → impl → API/DAO. N
 | Settings / devices | `screens/SettingsScreen.kt` | `SettingsViewModel.kt` | `DeviceRepository`, `SettingsRepository` | | Devices list, add/remove/switch; SECURITY section enables biometrics + stores agent PIN; CAPABILITIES refresh |
 | Capabilities | (onboarding step + Settings) | `CapabilitiesViewModel.kt` | `CapabilitiesRepository` | `CapabilitiesRepositoryImpl` | `GET /capabilities`; Room `vela_capability_*` + assistant tools; gates nav via `ModuleNavGate` |
 | Docker | `screens/DockerScreen.kt` | `DockerViewModel.kt` | `DockerRepository` | `DockerRepositoryImpl` | Info, containers, logs, start/stop/restart, compose; gated by `modules.docker` |
-| Push (FCM) | `screens/PushScreen.kt` | `PushViewModel.kt` | `PushRepository` | `PushRepositoryImpl` | `POST/DELETE /push/devices`; `PushRegistrar` + `VelaFirebaseMessagingService`; needs `google-services.json` |
+| Push (FCM) | Settings → NOTIFICATIONS | `SettingsViewModel` | `PushRepository` | `PushRepositoryImpl` | `POST/DELETE /push/devices`; switch in Settings; `PushRegistrar` + `VelaFirebaseMessagingService` |
+| Alerts | `screens/AlertsScreen.kt` | `AlertsViewModel.kt` | `AlertsRepository` | `AlertsRepositoryImpl` | `GET /alerts/history`; gated by `modules.alerts` |
 | Onboarding / pair first | `screens/onboarding/` | `OnboardingViewModel.kt` | `PairDeviceUseCase` | | Does **not** wipe existing devices; capabilities pull step after pair |
 | Add device | `screens/AddDeviceScreen.kt` | `AddDeviceViewModel.kt` | `PairDeviceUseCase` | | Appends + activates; pulls capabilities before done |
 | Users | (via settings/main) | `UsersViewModel.kt` | `UserRepository` | `UserRepositoryImpl` | Template API; unused for relay auth |

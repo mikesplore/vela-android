@@ -489,4 +489,15 @@ interface VelaApiService {
 
     @HTTP(method = "DELETE", path = "push/devices", hasBody = true)
     suspend fun unregisterPushDevice(@Body body: PushDeviceDeleteRequest): GenericResponse
+
+    // ── Alerts ────────────────────────────────────────────────────────────────
+
+    @GET("alerts/history")
+    suspend fun getAlertHistory(
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0,
+        @Query("alert_kind") alertKind: String? = null,
+        @Query("channel") channel: String? = null,
+        @Query("since_minutes") sinceMinutes: Int? = null
+    ): AlertHistoryResponse
 }

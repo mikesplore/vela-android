@@ -1,5 +1,9 @@
 package com.template.app.presentation.ui.screens
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -49,6 +53,12 @@ fun SettingsScreen(
     val biometricAvailable = rememberBiometricAvailable()
     val biometricAuth = rememberBiometricAuth()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onNotificationPermissionResult(granted)
+    }
 
     fun startEnableBiometrics() {
         if (!biometricAvailable || biometricAuth == null) {
@@ -282,6 +292,58 @@ fun SettingsScreen(
             thickness = 0.5.dp,
             color = MaterialTheme.colorScheme.outlineVariant
         )
+
+        if (state.pushAvailable) {
+            SectionHeader(title = "NOTIFICATIONS")
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Push alerts",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        when {
+                            !state.firebaseReady -> "Firebase is not configured on this build"
+                            !state.notificationPermissionGranted -> "Allow notifications to receive host alerts"
+                            state.pushRegistered -> "This phone is registered with the host"
+                            else -> "Register this device for FCM alerts from Vela"
+                        },
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                if (state.pushBusy) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Switch(
+                        checked = state.pushRegistered,
+                        enabled = state.firebaseReady,
+                        onCheckedChange = { enabled ->
+                            if (enabled && viewModel.needsNotificationPermission()) {
+                                if (Build.VERSION.SDK_INT >= 33) {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            } else {
+                                viewModel.setPushEnabled(enabled)
+                            }
+                        }
+                    )
+                }
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 22.dp),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+        }
 
         SectionHeader(title = "APPEARANCE")
         Spacer(modifier = Modifier.height(8.dp))

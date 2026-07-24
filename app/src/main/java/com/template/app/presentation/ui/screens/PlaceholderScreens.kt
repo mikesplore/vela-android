@@ -19,6 +19,3 @@ fun SecurityScreen() = PlaceholderScreen("Security Screen")
 
 @Composable
 fun InputControlScreen() = PlaceholderScreen("Input Control Screen")
-
-@Composable
-fun NotificationsScreen() = PlaceholderScreen("Notifications Screen")

@@ -26,12 +26,20 @@ object ModuleNavGate {
         Routes.POWER -> ModuleKeys.POWER
         Routes.CLIPBOARD -> null // not a probed module key on current server
         Routes.INPUT_CONTROL -> ModuleKeys.INPUT_CONTROL
-        Routes.NOTIFICATIONS -> ModuleKeys.NOTIFICATIONS
+        Routes.NOTIFICATIONS -> ModuleKeys.ALERTS
         Routes.SECURITY -> ModuleKeys.SECURITY
         Routes.DOCKER -> ModuleKeys.DOCKER
-        Routes.PUSH -> ModuleKeys.PUSH
         Routes.SETTINGS -> null
         else -> null
+    }
+
+    fun isModuleAvailable(caps: HostCapabilities?, moduleKey: String): Boolean {
+        if (caps == null || !caps.isLoaded) return false
+        if (moduleKey == ModuleKeys.MONITORING) {
+            return caps.isModuleAvailable(ModuleKeys.MONITORING) ||
+                caps.isModuleAvailable(ModuleKeys.SYSTEM_INFO)
+        }
+        return caps.isModuleAvailable(moduleKey)
     }
 
     fun isRouteAvailable(route: String, caps: HostCapabilities?): Boolean {

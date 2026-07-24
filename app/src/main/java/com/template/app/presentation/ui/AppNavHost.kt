@@ -40,7 +40,6 @@ object Routes {
 
     const val MONITOR = "monitor"
     const val DOCKER = "docker"
-    const val PUSH = "push"
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
