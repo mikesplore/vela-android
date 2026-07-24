@@ -34,6 +34,7 @@ import androidx.navigation.compose.*
 import com.template.app.domain.model.HostCapabilities
 import com.template.app.presentation.ui.Routes
 import com.template.app.presentation.ui.capabilities.ModuleNavGate
+import com.template.app.presentation.ui.screens.docker.DockerScreen
 import com.template.app.presentation.viewmodel.CapabilitiesViewModel
 
 @RequiresApi(Build.VERSION_CODES.O)

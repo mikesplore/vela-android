@@ -7,6 +7,45 @@ alwaysApply: true
 
 Before searching or walking the repo, read `AGENTS.md` at the project root.
 
-- Use its feature → file map to open only the relevant Screen / ViewModel / repository / API paths.
-- Do not scan `.git`, `.gradle`, `.idea`, `**/build`, or `app/production` / release artifacts.
+- Use its **feature → file map** to open only the relevant Screen / ViewModel / repository / API paths.
+- Do **not** scan `.git`, `.gradle`, `.idea`, `**/build`, or `app/production` / release artifacts.
 - When you add a screen, repository, or module, update `AGENTS.md`.
+
+## Quick pointers (see AGENTS.md for full map)
+
+**Source root:** `app/src/main/java/com/template/app/`
+
+| Area | Path |
+|------|------|
+| Routes / nav shell | `presentation/ui/AppNavHost.kt`, `screens/MainScreen.kt` |
+| Capabilities gating | `presentation/ui/capabilities/ModuleNavGate.kt`, `viewmodel/CapabilitiesViewModel.kt`, `domain/repository/CapabilitiesRepository.kt`, `core/data/repository/CapabilitiesRepositoryImpl.kt` |
+| Onboarding + pair | `screens/onboarding/`, `viewmodel/OnboardingViewModel.kt`, `domain/usecase/DeviceUseCases.kt` (`PairDeviceUseCase`) |
+| Dashboard FAB/cards | `screens/DashboardScreen.kt`, `components/DashboardFabMenu.kt`, `viewmodel/DashboardViewModel.kt` — FAB + media/audio/brightness gated by capabilities |
+| Assistant suggestions | `screens/chat/`, `viewmodel/AssistantViewModel.kt`, `presentation/ui/chat/AssistantToolSuggestions.kt` |
+| Docker | `screens/DockerScreen.kt`, `viewmodel/DockerViewModel.kt`, `DockerRepository*` |
+| Alerts history | `screens/AlertsScreen.kt`, `viewmodel/AlertsViewModel.kt`, `AlertsRepository*` — route `notifications`, module `alerts` |
+| Push (FCM) | **Settings only** — `SettingsScreen.kt` + `SettingsViewModel.kt`, `core/push/{PushRegistrar,VelaFirebaseMessagingService,PushPreferences}.kt`, `PushRepository*` |
+| API + DTOs | `core/data/remote/api/VelaApiService.kt`, `core/data/remote/dto/VelaDto.kt` |
+| Room (v29) | `core/data/local/AppDatabase.kt`, `entities/VelaEntities.kt`, `dao/VelaDao.kt` — capabilities + docker entities scoped by `connectionId` |
+| DI | `core/di/RepositoryModule.kt` |
+| Auth to agent | `core/network/VelaInterceptor.kt` — active device relay URL + `X-Secret` |
+
+## Capabilities-driven UI
+
+- Fetch: `GET /capabilities` (persisted per `connectionId` after pair / device switch / Settings refresh).
+- Onboarding: pair → **pull capabilities** (retry until success) → greeting.
+- Nav tabs + More menu filtered via `ModuleNavGate.isRouteAvailable()`; hide unavailable routes.
+- Do **not** add new feature screens unless asked — work with existing screens + Docker. Assistant chips = random 4 from persisted `assistant_tools`.
+
+## Build / Firebase
+
+- `app/google-services.json` (gitignored) — must match all application IDs (`com.template.app`, `.debug`, `.staging`, `.staging.debug`).
+- Google Services plugin applied only when that file exists (`app/build.gradle.kts`).
+- Flavors: `staging`, `production`; debug suffix `.debug`.
+
+## Conventions
+
+1. New feature: Screen → ViewModel → domain repo → `*RepositoryImpl` → API/DAO → `RepositoryModule`.
+2. All Vela Room rows need `connectionId` from `ActiveConnectionProvider`.
+3. Pairing via `PairDeviceUseCase` — never wipe device registry on add-device / onboarding.
+4. Legacy filename typo: `Maintainance*` (intentional).

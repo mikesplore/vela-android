@@ -24,7 +24,7 @@ object ModuleNavGate {
         Routes.SCHEDULER -> ModuleKeys.SCHEDULER
         Routes.MAINTENANCE -> ModuleKeys.MAINTENANCE
         Routes.POWER -> ModuleKeys.POWER
-        Routes.CLIPBOARD -> null // not a probed module key on current server
+        Routes.CLIPBOARD -> ModuleKeys.CLIPBOARD
         Routes.INPUT_CONTROL -> ModuleKeys.INPUT_CONTROL
         Routes.NOTIFICATIONS -> ModuleKeys.ALERTS
         Routes.SECURITY -> ModuleKeys.SECURITY

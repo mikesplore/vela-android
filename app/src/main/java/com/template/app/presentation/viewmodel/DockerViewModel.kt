@@ -11,9 +11,12 @@ import com.template.app.domain.model.DockerInfo
 import com.template.app.domain.model.DockerLogs
 import com.template.app.domain.repository.DockerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -48,6 +51,31 @@ class DockerViewModel @Inject constructor(
 
     init {
         refreshAll()
+        
+        // Use combine to keep detail in sync with the live container list
+        viewModelScope.launch {
+            combine(containers, _ui) { list, state ->
+                Pair(list, state.selectedId)
+            }.collectLatest { (list, selectedId) ->
+                if (selectedId == null) return@collectLatest
+                val matching = list.find { it.id == selectedId } ?: return@collectLatest
+                
+                _ui.update { state ->
+                    val currentDetail = state.detail ?: return@update state
+                    // Only update if state or status actually changed to avoid unnecessary recompositions
+                    if (currentDetail.state != matching.state || currentDetail.status != matching.status) {
+                        state.copy(
+                            detail = currentDetail.copy(
+                                state = matching.state,
+                                status = matching.status
+                            )
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
     }
 
     fun setFilter(value: String) {
@@ -63,23 +91,40 @@ class DockerViewModel @Inject constructor(
                 is Resource.Error -> appEventManager.showActionErrorSnackbar(result.message)
                 else -> {}
             }
+            _ui.value.selectedId?.let { refreshSelected(it) }
             _ui.update { it.copy(isRefreshing = false) }
         }
     }
 
     fun selectContainer(id: String) {
-        _ui.update { it.copy(selectedId = id, detail = null, logs = null) }
+        if (_ui.value.selectedId != id) {
+            _ui.update { it.copy(selectedId = id, detail = null, logs = null) }
+        }
         viewModelScope.launch {
-            when (val detail = repository.getContainer(id)) {
-                is Resource.Success -> _ui.update { it.copy(detail = detail.data) }
-                is Resource.Error -> appEventManager.showActionErrorSnackbar(detail.message)
-                else -> {}
+            refreshSelected(id)
+        }
+    }
+
+    private suspend fun refreshSelected(id: String) {
+        when (val res = repository.getContainer(id)) {
+            is Resource.Success -> {
+                _ui.update { state ->
+                    // Merge health/ports/etc from detail call, but respect the latest state from the list if available
+                    val liveState = containers.value.find { it.id == id }
+                    state.copy(
+                        detail = res.data.copy(
+                            state = liveState?.state ?: res.data.state,
+                            status = liveState?.status ?: res.data.status
+                        )
+                    )
+                }
             }
-            when (val logs = repository.getLogs(id, lines = 100)) {
-                is Resource.Success -> _ui.update { it.copy(logs = logs.data) }
-                is Resource.Error -> { /* detail still useful without logs */ }
-                else -> {}
-            }
+            is Resource.Error -> if (_ui.value.detail == null) appEventManager.showActionErrorSnackbar(res.message)
+            else -> {}
+        }
+        when (val logs = repository.getLogs(id, lines = 100)) {
+            is Resource.Success -> _ui.update { it.copy(logs = logs.data) }
+            else -> {}
         }
     }
 
@@ -87,22 +132,36 @@ class DockerViewModel @Inject constructor(
         _ui.update { it.copy(selectedId = null, detail = null, logs = null) }
     }
 
-    fun startSelected() = runAction { repository.start(it) }
-    fun stopSelected() = runAction { repository.stop(it) }
-    fun restartSelected() = runAction { repository.restart(it) }
+    fun startSelected() = runAction("starting") { repository.start(it) }
+    fun stopSelected() = runAction("stopping") { repository.stop(it) }
+    fun restartSelected() = runAction("restarting") { repository.restart(it) }
 
-    private fun runAction(block: suspend (String) -> Resource<String>) {
+    private fun runAction(optimisticState: String, block: suspend (String) -> Resource<String>) {
         val id = _ui.value.selectedId ?: return
         viewModelScope.launch {
             _ui.update { it.copy(actionBusy = true) }
+            
+            // Optimistic update
+            _ui.update { state ->
+                state.copy(detail = state.detail?.copy(state = optimisticState))
+            }
+            
             when (val result = block(id)) {
                 is Resource.Success -> {
                     appEventManager.showActionSuccessSnackbar(result.data)
-                    repository.refreshContainers(all = true, filter = _ui.value.filter.ifBlank { null })
-                    repository.refreshInfo()
-                    selectContainer(id)
+                    
+                    // Progressive refresh
+                    repeat(3) { i ->
+                        delay(500L * (i + 1))
+                        repository.refreshContainers(all = true, filter = _ui.value.filter.ifBlank { null })
+                        repository.refreshInfo()
+                        refreshSelected(id)
+                    }
                 }
-                is Resource.Error -> appEventManager.showActionErrorSnackbar(result.message)
+                is Resource.Error -> {
+                    appEventManager.showActionErrorSnackbar(result.message)
+                    refreshSelected(id) // Revert optimistic state
+                }
                 else -> {}
             }
             _ui.update { it.copy(actionBusy = false) }
