@@ -55,9 +55,14 @@ import com.template.app.core.data.local.entities.*
         VelaBluetoothDeviceEntity::class,
         AssistantMessageEntity::class,
         VelaUptimeEntity::class,
-        NetUsageEntity::class
+        NetUsageEntity::class,
+        VelaCapabilitiesMetaEntity::class,
+        VelaCapabilityModuleEntity::class,
+        VelaAssistantToolEntity::class,
+        VelaDockerInfoEntity::class,
+        VelaDockerContainerEntity::class
     ],
-    version = 28,
+    version = 29,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

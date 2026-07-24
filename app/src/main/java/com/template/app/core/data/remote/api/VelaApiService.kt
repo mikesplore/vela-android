@@ -428,4 +428,65 @@ interface VelaApiService {
         @Header("X-Session-ID") sessionId: String,
         @Body body: AssistantRequest
     ): ResponseBody
+
+    // ── Capabilities ──────────────────────────────────────────────────────────
+
+    @GET("capabilities")
+    suspend fun getCapabilities(
+        @Query("refresh") refresh: Boolean = false
+    ): CapabilitiesResponse
+
+    @POST("capabilities/refresh")
+    suspend fun refreshCapabilities(): CapabilitiesRefreshResponse
+
+    // ── Docker ────────────────────────────────────────────────────────────────
+
+    @GET("docker/info")
+    suspend fun getDockerInfo(): DockerInfoResponse
+
+    @GET("docker/containers")
+    suspend fun getDockerContainers(
+        @Query("all") all: Boolean = true,
+        @Query("filter") filter: String? = null
+    ): DockerContainersResponse
+
+    @GET("docker/containers/{name_or_id}")
+    suspend fun getDockerContainer(
+        @Path("name_or_id") nameOrId: String
+    ): DockerContainerDetailDto
+
+    @GET("docker/containers/{name_or_id}/logs")
+    suspend fun getDockerContainerLogs(
+        @Path("name_or_id") nameOrId: String,
+        @Query("lines") lines: Int = 100
+    ): DockerLogsResponse
+
+    @POST("docker/containers/{name_or_id}/start")
+    suspend fun startDockerContainer(
+        @Path("name_or_id") nameOrId: String
+    ): GenericResponse
+
+    @POST("docker/containers/{name_or_id}/stop")
+    suspend fun stopDockerContainer(
+        @Path("name_or_id") nameOrId: String
+    ): GenericResponse
+
+    @POST("docker/containers/{name_or_id}/restart")
+    suspend fun restartDockerContainer(
+        @Path("name_or_id") nameOrId: String
+    ): GenericResponse
+
+    @GET("docker/compose")
+    suspend fun getDockerCompose(
+        @Query("project_directory") projectDirectory: String? = null,
+        @Query("project") project: String? = null
+    ): DockerComposeResponse
+
+    // ── Push (FCM) ────────────────────────────────────────────────────────────
+
+    @POST("push/devices")
+    suspend fun registerPushDevice(@Body body: PushDeviceRequest): GenericResponse
+
+    @HTTP(method = "DELETE", path = "push/devices", hasBody = true)
+    suspend fun unregisterPushDevice(@Body body: PushDeviceDeleteRequest): GenericResponse
 }

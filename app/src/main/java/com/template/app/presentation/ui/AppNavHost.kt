@@ -39,6 +39,8 @@ object Routes {
     const val NETWORK_LOGS = "network_logs"
 
     const val MONITOR = "monitor"
+    const val DOCKER = "docker"
+    const val PUSH = "push"
 }
 
 @RequiresApi(Build.VERSION_CODES.O)

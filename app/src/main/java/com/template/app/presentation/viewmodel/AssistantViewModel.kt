@@ -6,12 +6,15 @@ import com.template.app.domain.model.AssistantSendEvent
 import com.template.app.domain.model.AssistantSendPhase
 import com.template.app.domain.model.SecureReplyKind
 import com.template.app.domain.repository.AssistantRepository
+import com.template.app.domain.repository.CapabilitiesRepository
 import com.template.app.domain.repository.SettingsRepository
 import com.template.app.domain.usecase.GetSettingsUseCase
+import com.template.app.presentation.ui.chat.AssistantToolSuggestions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -25,13 +28,15 @@ data class AssistantState(
     val isLoading: Boolean = false,
     val isInitialLoading: Boolean = true,
     val inputText: String = "",
-    val sendPhase: AssistantSendPhase = AssistantSendPhase.Idle
+    val sendPhase: AssistantSendPhase = AssistantSendPhase.Idle,
+    val suggestions: List<com.template.app.presentation.ui.chat.AssistantSuggestion> = emptyList()
 )
 
 @HiltViewModel
 class AssistantViewModel @Inject constructor(
     private val repository: AssistantRepository,
     private val settingsRepository: SettingsRepository,
+    private val capabilitiesRepository: CapabilitiesRepository,
     getSettingsUseCase: GetSettingsUseCase
 ) : ViewModel() {
 
@@ -44,6 +49,7 @@ class AssistantViewModel @Inject constructor(
 
     init {
         observeMessages()
+        refreshAssistantTools()
     }
 
     private fun observeMessages() {
@@ -53,6 +59,21 @@ class AssistantViewModel @Inject constructor(
                     messages = messages,
                     isInitialLoading = false
                 ) }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    /** Always refresh capabilities tools when chat launches; pick 4 mapped suggestions. */
+    fun refreshAssistantTools() {
+        viewModelScope.launch {
+            capabilitiesRepository.fetchCapabilities(refreshProbes = false)
+        }
+        capabilitiesRepository.observeAvailableAssistantTools()
+            .distinctUntilChanged()
+            .onEach { tools ->
+                _state.update {
+                    it.copy(suggestions = AssistantToolSuggestions.pickRandom(tools, count = 4))
+                }
             }
             .launchIn(viewModelScope)
     }

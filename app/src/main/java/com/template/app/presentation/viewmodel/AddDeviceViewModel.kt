@@ -3,10 +3,14 @@ package com.template.app.presentation.viewmodel
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.push.PushRegistrar
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
+import com.template.app.domain.repository.CapabilitiesRepository
 import com.template.app.domain.usecase.PairDeviceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -16,6 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AddDeviceViewModel @Inject constructor(
     private val pairDeviceUseCase: PairDeviceUseCase,
+    private val capabilitiesRepository: CapabilitiesRepository,
+    private val pushRegistrar: PushRegistrar,
     private val appEventManager: AppEventManager,
 ) : ViewModel() {
 
@@ -39,6 +45,12 @@ class AddDeviceViewModel @Inject constructor(
 
     private val _finished = MutableStateFlow(false)
     val finished = _finished.asStateFlow()
+
+    private val _capabilitiesState =
+        MutableStateFlow<OnboardingViewModel.CapabilitiesLoadState>(OnboardingViewModel.CapabilitiesLoadState.Idle)
+    val capabilitiesState = _capabilitiesState.asStateFlow()
+
+    private var capsJob: Job? = null
 
     fun setBaseUrl(url: String) {
         _baseUrl.value = url
@@ -115,6 +127,7 @@ class AddDeviceViewModel @Inject constructor(
                     val username = result.data.username ?: result.data.device.displayName
                     _username.value = username
                     _testState.value = OnboardingViewModel.TestResult.Success(username)
+                    loadCapabilitiesThenFinish()
                 }
                 is Resource.Error -> {
                     _testState.value = OnboardingViewModel.TestResult.Error(result.message)
@@ -123,6 +136,34 @@ class AddDeviceViewModel @Inject constructor(
                 else -> {}
             }
             appEventManager.setLoading(false)
+        }
+    }
+
+    fun loadCapabilitiesThenFinish() {
+        capsJob?.cancel()
+        capsJob = viewModelScope.launch {
+            _capabilitiesState.value = OnboardingViewModel.CapabilitiesLoadState.Loading
+            var attempt = 0
+            while (true) {
+                attempt++
+                when (val result = capabilitiesRepository.fetchCapabilities(refreshProbes = false)) {
+                    is Resource.Success -> {
+                        val count = result.data.modules.count { it.value.available }
+                        _capabilitiesState.value =
+                            OnboardingViewModel.CapabilitiesLoadState.Success(count)
+                        pushRegistrar.registerIfPossible()
+                        return@launch
+                    }
+                    is Resource.Error -> {
+                        _capabilitiesState.value = OnboardingViewModel.CapabilitiesLoadState.Error(
+                            result.message.ifBlank { "Failed to load capabilities" }
+                        )
+                        delay((1500L * attempt).coerceAtMost(8000L))
+                        _capabilitiesState.value = OnboardingViewModel.CapabilitiesLoadState.Loading
+                    }
+                    else -> delay(1000)
+                }
+            }
         }
     }
 

@@ -32,3 +32,4 @@ captures/
 /build/
 *.sqlite
 production/
+google-services.json

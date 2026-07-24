@@ -122,9 +122,12 @@ For a feature, open Screen → ViewModel → domain repo → impl → API/DAO. N
 | Power | `screens/PowerScreen.kt` | `PowerViewModel.kt` | `PowerRepository` | `PowerRepositoryImpl` | Power confirms via `SecureConfirmGate` |
 | Clipboard | `screens/ClipboardScreen.kt` | `ClipboardViewModel.kt` | `ClipboardRepository` | `ClipboardRepositoryImpl` | |
 | Monitor | `screens/MonitorScreen.kt` | `MonitorViewModel.kt` | `MonitorRepository` | `MonitorRepositoryImpl` | Disk/net I/O + processes via direct `GET /monitor/disk-io`, `/network-io`, `/processes` (not snapshot-only) |
-| Settings / devices | `screens/SettingsScreen.kt` | `SettingsViewModel.kt` | `DeviceRepository`, `SettingsRepository` | | Devices list, add/remove/switch; SECURITY section enables biometrics + stores agent PIN |
-| Onboarding / pair first | `screens/onboarding/` | `OnboardingViewModel.kt` | `PairDeviceUseCase` | | Does **not** wipe existing devices |
-| Add device | `screens/AddDeviceScreen.kt` | `AddDeviceViewModel.kt` | `PairDeviceUseCase` | | Appends + activates |
+| Settings / devices | `screens/SettingsScreen.kt` | `SettingsViewModel.kt` | `DeviceRepository`, `SettingsRepository` | | Devices list, add/remove/switch; SECURITY section enables biometrics + stores agent PIN; CAPABILITIES refresh |
+| Capabilities | (onboarding step + Settings) | `CapabilitiesViewModel.kt` | `CapabilitiesRepository` | `CapabilitiesRepositoryImpl` | `GET /capabilities`; Room `vela_capability_*` + assistant tools; gates nav via `ModuleNavGate` |
+| Docker | `screens/DockerScreen.kt` | `DockerViewModel.kt` | `DockerRepository` | `DockerRepositoryImpl` | Info, containers, logs, start/stop/restart, compose; gated by `modules.docker` |
+| Push (FCM) | `screens/PushScreen.kt` | `PushViewModel.kt` | `PushRepository` | `PushRepositoryImpl` | `POST/DELETE /push/devices`; `PushRegistrar` + `VelaFirebaseMessagingService`; needs `google-services.json` |
+| Onboarding / pair first | `screens/onboarding/` | `OnboardingViewModel.kt` | `PairDeviceUseCase` | | Does **not** wipe existing devices; capabilities pull step after pair |
+| Add device | `screens/AddDeviceScreen.kt` | `AddDeviceViewModel.kt` | `PairDeviceUseCase` | | Appends + activates; pulls capabilities before done |
 | Users | (via settings/main) | `UsersViewModel.kt` | `UserRepository` | `UserRepositoryImpl` | Template API; unused for relay auth |
 | Placeholders | `screens/PlaceholderScreens.kt` | — | — | — | Unfinished routes |
 
@@ -132,7 +135,7 @@ For a feature, open Screen → ViewModel → domain repo → impl → API/DAO. N
 
 | Kind | Path |
 |------|------|
-| Room DB | `core/data/local/AppDatabase.kt` (v28), `Converters.kt` |
+| Room DB | `core/data/local/AppDatabase.kt` (v29), `Converters.kt` |
 | DAOs | `dao/{PairedDevice,Assistant,Settings,User,Vela}Dao.kt` |
 | Entities | `entities/` — Vela bulk in `VelaEntities.kt` (all scoped by `connectionId`) |
 | Preferences | `core/data/local/UserPreferencesDataStore.kt` |

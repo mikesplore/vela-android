@@ -24,11 +24,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Screenshot
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,13 +41,84 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.template.app.domain.model.AssistantSendPhase
+import com.template.app.presentation.ui.chat.AssistantSuggestion
 
-private val SUGGESTIONS = listOf(
-    "What's my CPU usage?" to Icons.Default.Memory,
-    "Take a screenshot" to Icons.Default.Screenshot,
-    "What's my battery at?" to Icons.Default.BatteryFull,
-    "Lock the screen" to Icons.Default.Lock
+private val FALLBACK_SUGGESTIONS = listOf(
+    AssistantSuggestion("fallback_cpu", "What's my CPU usage?", Icons.Default.Memory),
+    AssistantSuggestion("fallback_disk", "Show disk usage", Icons.Default.Storage),
+    AssistantSuggestion("fallback_uptime", "How long has this host been up?", Icons.Default.Memory),
+    AssistantSuggestion("fallback_procs", "List top processes", Icons.Default.Terminal)
 )
+
+@Composable
+fun EmptyState(
+    suggestions: List<AssistantSuggestion> = emptyList(),
+    onSuggestionClick: (String) -> Unit
+) {
+    val chips = suggestions.ifEmpty { FALLBACK_SUGGESTIONS }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Spacer(modifier = Modifier.height(48.dp))
+        
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .background(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    RoundedCornerShape(24.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Memory,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = "Hey, I'm Vela",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Ask me anything about your PC, or pick a quick action below",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            chips.forEach { suggestion ->
+                SuggestionCard(
+                    label = suggestion.label,
+                    icon = suggestion.icon,
+                    onClick = { onSuggestionClick(suggestion.label) }
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(32.dp))
+    }
+}
 
 @Composable
 fun ScrollToBottomButton(onClick: () -> Unit) {
@@ -201,64 +271,3 @@ fun SuggestionCard(label: String, icon: ImageVector, onClick: () -> Unit) {
     }
 }
 
-@Composable
-fun EmptyState(onSuggestionClick: (String) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .background(
-                    MaterialTheme.colorScheme.primaryContainer,
-                    RoundedCornerShape(24.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Memory,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(32.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = "Hey, I'm Vela",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Ask me anything about your PC, or pick a quick action below",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            SUGGESTIONS.forEach { (label, icon) ->
-                SuggestionCard(label = label, icon = icon, onClick = { onSuggestionClick(label) })
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(32.dp))
-    }
-}

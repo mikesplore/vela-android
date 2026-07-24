@@ -7,6 +7,11 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// Apply only when google-services.json is present (required for FCM).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.template.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -115,6 +120,10 @@ dependencies {
 
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.security.crypto)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.bundles.testing)
     androidTestImplementation(libs.androidx.junit)

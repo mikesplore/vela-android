@@ -87,4 +87,16 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideAssistantRepository(impl: AssistantRepositoryImpl): AssistantRepository = impl
+
+    @Provides
+    @Singleton
+    fun provideCapabilitiesRepository(impl: CapabilitiesRepositoryImpl): CapabilitiesRepository = impl
+
+    @Provides
+    @Singleton
+    fun provideDockerRepository(impl: DockerRepositoryImpl): DockerRepository = impl
+
+    @Provides
+    @Singleton
+    fun providePushRepository(impl: PushRepositoryImpl): PushRepository = impl
 }

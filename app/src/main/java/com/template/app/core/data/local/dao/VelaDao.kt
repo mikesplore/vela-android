@@ -534,6 +534,9 @@ interface VelaDao {
         clearServices(connectionId)
         // Singletons + remaining tables
         clearFilesAll(connectionId)
+        clearCapabilityModules(connectionId)
+        clearAssistantTools(connectionId)
+        clearDockerContainers(connectionId)
         clearSingletonRows(connectionId)
     }
 
@@ -579,6 +582,105 @@ interface VelaDao {
     @Query("DELETE FROM vela_config WHERE connectionId = :connectionId")
     suspend fun clearConfig(connectionId: Long)
 
+    // ── Capabilities ──────────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM vela_capabilities_meta WHERE connectionId = :connectionId")
+    fun observeCapabilitiesMeta(connectionId: Long): Flow<VelaCapabilitiesMetaEntity?>
+
+    @Query("SELECT * FROM vela_capabilities_meta WHERE connectionId = :connectionId")
+    suspend fun getCapabilitiesMeta(connectionId: Long): VelaCapabilitiesMetaEntity?
+
+    @Upsert
+    suspend fun upsertCapabilitiesMeta(meta: VelaCapabilitiesMetaEntity)
+
+    @Query("SELECT * FROM vela_capability_modules WHERE connectionId = :connectionId")
+    fun observeCapabilityModules(connectionId: Long): Flow<List<VelaCapabilityModuleEntity>>
+
+    @Query("SELECT * FROM vela_capability_modules WHERE connectionId = :connectionId")
+    suspend fun getCapabilityModules(connectionId: Long): List<VelaCapabilityModuleEntity>
+
+    @Upsert
+    suspend fun upsertCapabilityModules(modules: List<VelaCapabilityModuleEntity>)
+
+    @Query("DELETE FROM vela_capability_modules WHERE connectionId = :connectionId")
+    suspend fun clearCapabilityModules(connectionId: Long)
+
+    @Query("DELETE FROM vela_capability_modules WHERE connectionId = :connectionId AND moduleKey NOT IN (:keys)")
+    suspend fun deleteCapabilityModulesExcept(connectionId: Long, keys: List<String>)
+
+    @Query("SELECT * FROM vela_assistant_tools WHERE connectionId = :connectionId AND available = 1")
+    fun observeAvailableAssistantTools(connectionId: Long): Flow<List<VelaAssistantToolEntity>>
+
+    @Query("SELECT * FROM vela_assistant_tools WHERE connectionId = :connectionId")
+    suspend fun getAssistantTools(connectionId: Long): List<VelaAssistantToolEntity>
+
+    @Upsert
+    suspend fun upsertAssistantTools(tools: List<VelaAssistantToolEntity>)
+
+    @Query("DELETE FROM vela_assistant_tools WHERE connectionId = :connectionId")
+    suspend fun clearAssistantTools(connectionId: Long)
+
+    @Query("DELETE FROM vela_assistant_tools WHERE connectionId = :connectionId AND toolName NOT IN (:names)")
+    suspend fun deleteAssistantToolsExcept(connectionId: Long, names: List<String>)
+
+    @Query("DELETE FROM vela_capabilities_meta WHERE connectionId = :connectionId")
+    suspend fun clearCapabilitiesMeta(connectionId: Long)
+
+    @Transaction
+    suspend fun replaceCapabilities(
+        connectionId: Long,
+        meta: VelaCapabilitiesMetaEntity,
+        modules: List<VelaCapabilityModuleEntity>,
+        tools: List<VelaAssistantToolEntity>
+    ) {
+        upsertCapabilitiesMeta(meta)
+        if (modules.isEmpty()) {
+            clearCapabilityModules(connectionId)
+        } else {
+            upsertCapabilityModules(modules)
+            deleteCapabilityModulesExcept(connectionId, modules.map { it.moduleKey })
+        }
+        if (tools.isEmpty()) {
+            clearAssistantTools(connectionId)
+        } else {
+            upsertAssistantTools(tools)
+            deleteAssistantToolsExcept(connectionId, tools.map { it.toolName })
+        }
+    }
+
+    // ── Docker ────────────────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM vela_docker_info WHERE connectionId = :connectionId")
+    fun observeDockerInfo(connectionId: Long): Flow<VelaDockerInfoEntity?>
+
+    @Upsert
+    suspend fun upsertDockerInfo(info: VelaDockerInfoEntity)
+
+    @Query("DELETE FROM vela_docker_info WHERE connectionId = :connectionId")
+    suspend fun clearDockerInfo(connectionId: Long)
+
+    @Query("SELECT * FROM vela_docker_containers WHERE connectionId = :connectionId ORDER BY name ASC")
+    fun observeDockerContainers(connectionId: Long): Flow<List<VelaDockerContainerEntity>>
+
+    @Upsert
+    suspend fun upsertDockerContainers(containers: List<VelaDockerContainerEntity>)
+
+    @Query("DELETE FROM vela_docker_containers WHERE connectionId = :connectionId")
+    suspend fun clearDockerContainers(connectionId: Long)
+
+    @Query("DELETE FROM vela_docker_containers WHERE connectionId = :connectionId AND id NOT IN (:ids)")
+    suspend fun deleteDockerContainersExcept(connectionId: Long, ids: List<String>)
+
+    @Transaction
+    suspend fun replaceDockerContainers(connectionId: Long, containers: List<VelaDockerContainerEntity>) {
+        if (containers.isEmpty()) {
+            clearDockerContainers(connectionId)
+        } else {
+            upsertDockerContainers(containers)
+            deleteDockerContainersExcept(connectionId, containers.map { it.id })
+        }
+    }
+
     @Transaction
     suspend fun clearSingletonRows(connectionId: Long) {
         clearUptime(connectionId)
@@ -594,5 +696,7 @@ interface VelaDao {
         clearBattery(connectionId)
         clearActiveWindow(connectionId)
         clearConfig(connectionId)
+        clearDockerInfo(connectionId)
+        clearCapabilitiesMeta(connectionId)
     }
 }

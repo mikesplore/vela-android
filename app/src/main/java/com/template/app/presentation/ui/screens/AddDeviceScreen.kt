@@ -17,7 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.template.app.presentation.ui.screens.onboarding.OnboardingStepGreeting
+import com.template.app.presentation.ui.screens.onboarding.OnboardingStepCapabilities
 import com.template.app.presentation.ui.screens.onboarding.OnboardingStepSettings
 import com.template.app.presentation.viewmodel.AddDeviceViewModel
 import com.template.app.presentation.viewmodel.OnboardingViewModel
@@ -34,19 +34,23 @@ fun AddDeviceScreen(
     val pairingPin by viewModel.pairingPin.collectAsStateWithLifecycle()
     val showPassword by viewModel.showPassword.collectAsStateWithLifecycle()
     val testState by viewModel.testState.collectAsStateWithLifecycle()
-    val username by viewModel.username.collectAsStateWithLifecycle()
     val finished by viewModel.finished.collectAsStateWithLifecycle()
+    val capabilitiesState by viewModel.capabilitiesState.collectAsStateWithLifecycle()
 
     LaunchedEffect(finished) {
         if (finished) onDone()
     }
 
-    val showGreeting = testState is OnboardingViewModel.TestResult.Success
+    val paired = testState is OnboardingViewModel.TestResult.Success
+    val title = when {
+        paired -> "Host capabilities"
+        else -> "Add device"
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (showGreeting) "Device added" else "Add device") },
+                title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -60,10 +64,13 @@ fun AddDeviceScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (showGreeting) {
-                OnboardingStepGreeting(
-                    username = username?.replaceFirstChar { it.uppercase() },
-                    onFinish = { viewModel.finish() }
+            if (paired) {
+                OnboardingStepCapabilities(
+                    state = capabilitiesState,
+                    availableCount = (capabilitiesState as? OnboardingViewModel.CapabilitiesLoadState.Success)
+                        ?.moduleCount ?: 0,
+                    onRetry = viewModel::loadCapabilitiesThenFinish,
+                    onContinue = { viewModel.finish() }
                 )
             } else {
                 OnboardingStepSettings(
@@ -79,7 +86,6 @@ fun AddDeviceScreen(
                     onPerformPairing = viewModel::manualPairing,
                     onQrScanned = viewModel::onQrScanned,
                     onSkipOnboarding = {},
-                    // Success auto-calls onContinue; stay on this screen so greeting can show.
                     onContinue = {}
                 )
             }

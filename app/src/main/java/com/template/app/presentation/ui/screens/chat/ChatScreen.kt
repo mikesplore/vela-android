@@ -121,6 +121,7 @@ fun ChatScreen(
                     }
                 } else if (state.messages.isEmpty()) {
                     EmptyState(
+                        suggestions = state.suggestions,
                         onSuggestionClick = { suggestion ->
                             viewModel.onInputTextChanged(suggestion)
                             viewModel.sendMessage()

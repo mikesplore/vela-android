@@ -763,3 +763,113 @@ data class VelaConfigEntity(
         )
     }
 }
+
+@Entity(tableName = "vela_capabilities_meta")
+data class VelaCapabilitiesMetaEntity(
+    @PrimaryKey val connectionId: Long,
+    val checkedAt: String?,
+    val fetchedAtMillis: Long
+)
+
+@Entity(
+    tableName = "vela_capability_modules",
+    primaryKeys = ["connectionId", "moduleKey"]
+)
+data class VelaCapabilityModuleEntity(
+    val connectionId: Long,
+    val moduleKey: String,
+    val available: Boolean,
+    val configEnabled: Boolean,
+    val reason: String?,
+    val missingCommands: List<String>
+) {
+    fun toDomain() = ModuleCapability(
+        key = moduleKey,
+        available = available,
+        configEnabled = configEnabled,
+        reason = reason,
+        missingCommands = missingCommands
+    )
+}
+
+@Entity(
+    tableName = "vela_assistant_tools",
+    primaryKeys = ["connectionId", "toolName"]
+)
+data class VelaAssistantToolEntity(
+    val connectionId: Long,
+    val toolName: String,
+    val available: Boolean,
+    val unavailableReason: String? = null
+)
+
+@Entity(tableName = "vela_docker_info")
+data class VelaDockerInfoEntity(
+    @PrimaryKey val connectionId: Long,
+    val installed: Boolean,
+    val running: Boolean,
+    val version: String?,
+    val containersRunning: Int?,
+    val containersTotal: Int?,
+    val message: String?
+) {
+    fun toDomain() = DockerInfo(
+        installed = installed,
+        running = running,
+        version = version,
+        containersRunning = containersRunning,
+        containersTotal = containersTotal,
+        message = message
+    )
+
+    companion object {
+        fun fromDomain(connectionId: Long, info: DockerInfo) = VelaDockerInfoEntity(
+            connectionId = connectionId,
+            installed = info.installed,
+            running = info.running,
+            version = info.version,
+            containersRunning = info.containersRunning,
+            containersTotal = info.containersTotal,
+            message = info.message
+        )
+    }
+}
+
+@Entity(
+    tableName = "vela_docker_containers",
+    primaryKeys = ["connectionId", "id"]
+)
+data class VelaDockerContainerEntity(
+    val connectionId: Long,
+    val id: String,
+    val name: String,
+    val image: String,
+    val status: String,
+    val state: String,
+    val ports: String?,
+    val created: String?
+) {
+    fun toDomain() = DockerContainer(
+        id = id,
+        name = name,
+        image = image,
+        status = status,
+        state = state,
+        ports = ports,
+        created = created
+    )
+
+    companion object {
+        fun fromDomain(connectionId: Long, c: DockerContainer) = VelaDockerContainerEntity(
+            connectionId = connectionId,
+            id = c.id,
+            name = c.name,
+            image = c.image,
+            status = c.status,
+            state = c.state,
+            ports = c.ports,
+            created = c.created
+        )
+    }
+}
+

@@ -21,7 +21,8 @@ data class DeviceResponse(
 data class RootResponse(
     val name: String? = null,
     val version: String? = null,
-    @Json(name = "enabled_modules") val enabledModules: List<String>? = null
+    @Json(name = "enabled_modules") val enabledModules: List<String>? = null,
+    @Json(name = "available_modules") val availableModules: List<String>? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -683,4 +684,108 @@ data class NetUsageResponse(
     @Json(name = "transmitted_bytes") val transmittedBytes: Long,
     val received: String,
     val transmitted: String
+)
+
+// ── Capabilities ──────────────────────────────────────────────────────────────
+
+@JsonClass(generateAdapter = true)
+data class CapabilitiesResponse(
+    @Json(name = "checked_at") val checkedAt: String? = null,
+    val modules: Map<String, ModuleCapabilityDto> = emptyMap(),
+    @Json(name = "assistant_tools") val assistantTools: AssistantToolsDto? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ModuleCapabilityDto(
+    val available: Boolean = false,
+    @Json(name = "config_enabled") val configEnabled: Boolean = false,
+    val reason: String? = null,
+    @Json(name = "missing_commands") val missingCommands: List<String>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class AssistantToolsDto(
+    val available: List<String> = emptyList(),
+    val unavailable: Map<String, String> = emptyMap()
+)
+
+@JsonClass(generateAdapter = true)
+data class CapabilitiesRefreshResponse(
+    @Json(name = "checked_at") val checkedAt: String? = null,
+    @Json(name = "modules_available") val modulesAvailable: Int? = null,
+    @Json(name = "tools_available") val toolsAvailable: Int? = null
+)
+
+// ── Docker ────────────────────────────────────────────────────────────────────
+
+@JsonClass(generateAdapter = true)
+data class DockerInfoResponse(
+    val installed: Boolean = false,
+    val running: Boolean = false,
+    val version: String? = null,
+    @Json(name = "containers_running") val containersRunning: Int? = null,
+    @Json(name = "containers_total") val containersTotal: Int? = null,
+    val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DockerContainersResponse(
+    val containers: List<DockerContainerDto> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class DockerContainerDto(
+    val id: String? = null,
+    val name: String? = null,
+    val image: String? = null,
+    val status: String? = null,
+    val state: String? = null,
+    val ports: String? = null,
+    val created: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DockerContainerDetailDto(
+    val id: String? = null,
+    val name: String? = null,
+    val image: String? = null,
+    val status: String? = null,
+    val state: String? = null,
+    val health: String? = null,
+    val ports: List<String>? = null,
+    @Json(name = "started_at") val startedAt: String? = null,
+    @Json(name = "finished_at") val finishedAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DockerLogsResponse(
+    val container: String? = null,
+    val lines: List<String> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class DockerComposeResponse(
+    val project: String? = null,
+    val services: List<DockerComposeServiceDto> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class DockerComposeServiceDto(
+    val name: String? = null,
+    val state: String? = null,
+    val status: String? = null,
+    val ports: String? = null
+)
+
+// ── Push (FCM) ────────────────────────────────────────────────────────────────
+
+@JsonClass(generateAdapter = true)
+data class PushDeviceRequest(
+    val token: String,
+    @Json(name = "installation_id") val installationId: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class PushDeviceDeleteRequest(
+    val token: String
 )

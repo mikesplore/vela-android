@@ -3,10 +3,13 @@ package com.template.app.presentation.viewmodel
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.template.app.core.push.PushRegistrar
 import com.template.app.core.utils.AppEventManager
 import com.template.app.core.utils.Resource
+import com.template.app.domain.repository.CapabilitiesRepository
 import com.template.app.domain.usecase.PairDeviceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -16,6 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val pairDeviceUseCase: PairDeviceUseCase,
+    private val capabilitiesRepository: CapabilitiesRepository,
+    private val pushRegistrar: PushRegistrar,
     private val appEventManager: AppEventManager,
 ) : ViewModel() {
 
@@ -43,6 +48,13 @@ class OnboardingViewModel @Inject constructor(
     private val _pairingComplete = MutableStateFlow(false)
     val pairingComplete = _pairingComplete.asStateFlow()
 
+    private val _capabilitiesState =
+        MutableStateFlow<CapabilitiesLoadState>(CapabilitiesLoadState.Idle)
+    val capabilitiesState = _capabilitiesState.asStateFlow()
+
+    private val _availableModuleCount = MutableStateFlow(0)
+    val availableModuleCount = _availableModuleCount.asStateFlow()
+
     sealed interface TestResult {
         object Idle : TestResult
         data class Testing(val message: String) : TestResult
@@ -50,12 +62,22 @@ class OnboardingViewModel @Inject constructor(
         data class Error(val message: String) : TestResult
     }
 
+    sealed interface CapabilitiesLoadState {
+        object Idle : CapabilitiesLoadState
+        object Loading : CapabilitiesLoadState
+        data class Success(val moduleCount: Int) : CapabilitiesLoadState
+        data class Error(val message: String) : CapabilitiesLoadState
+    }
+
     fun nextPage() {
-        if (_currentPage.value < 3) {
+        if (_currentPage.value < 4) {
             val next = _currentPage.value + 1
             _currentPage.value = next
             if (next < 3) {
                 resetPairingInputs()
+            }
+            if (next == 3) {
+                loadCapabilities()
             }
         }
     }
@@ -63,7 +85,9 @@ class OnboardingViewModel @Inject constructor(
     fun prevPage() {
         if (_currentPage.value > 0) {
             _currentPage.value--
-            resetPairingInputs()
+            if (_currentPage.value < 3) {
+                resetPairingInputs()
+            }
         }
     }
 
@@ -161,8 +185,38 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    private var capsJob: kotlinx.coroutines.Job? = null
+
+    fun loadCapabilities() {
+        capsJob?.cancel()
+        capsJob = viewModelScope.launch {
+            _capabilitiesState.value = CapabilitiesLoadState.Loading
+            var attempt = 0
+            while (true) {
+                attempt++
+                when (val result = capabilitiesRepository.fetchCapabilities(refreshProbes = false)) {
+                    is Resource.Success -> {
+                        val count = result.data.modules.count { it.value.available }
+                        _availableModuleCount.value = count
+                        _capabilitiesState.value = CapabilitiesLoadState.Success(count)
+                        pushRegistrar.registerIfPossible()
+                        return@launch
+                    }
+                    is Resource.Error -> {
+                        _capabilitiesState.value = CapabilitiesLoadState.Error(
+                            (result.message.ifBlank { "Failed to load capabilities" }) +
+                                if (attempt > 1) " (attempt $attempt)" else ""
+                        )
+                        delay((1500L * attempt).coerceAtMost(8000L))
+                        _capabilitiesState.value = CapabilitiesLoadState.Loading
+                    }
+                    else -> delay(1000)
+                }
+            }
+        }
+    }
+
     fun finishOnboarding() {
-        // Device already persisted and active via PairDeviceUseCase
         _pairingComplete.value = true
     }
 }

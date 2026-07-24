@@ -32,7 +32,10 @@ private enum class PinCaptureMode { ENABLE, UPDATE }
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onCredentialsCleared: () -> Unit = {},
-    onAddDevice: () -> Unit = {}
+    onAddDevice: () -> Unit = {},
+    onRefreshCapabilities: () -> Unit = {},
+    capabilities: com.template.app.domain.model.HostCapabilities? = null,
+    capabilitiesLoading: Boolean = false
 ) {
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
@@ -234,6 +237,43 @@ fun SettingsScreen(
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 10.dp)
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 22.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+
+        SectionHeader(title = "CAPABILITIES")
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val availableCount = capabilities?.modules?.count { it.value.available } ?: 0
+        val totalCount = capabilities?.modules?.size ?: 0
+        AboutRow(
+            label = "Modules",
+            value = if (capabilities?.isLoaded == true) "$availableCount / $totalCount available" else "Not loaded"
+        )
+        AboutRow(
+            label = "Checked",
+            value = capabilities?.checkedAt ?: "—"
+        )
+        TextButton(
+            onClick = onRefreshCapabilities,
+            enabled = !capabilitiesLoading,
+            modifier = Modifier.padding(top = 4.dp)
+        ) {
+            if (capabilitiesLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Spacer(modifier = Modifier.width(8.dp))
+            } else {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Text(
+                if (capabilitiesLoading) "Refreshing…" else "Refresh capabilities",
+                fontSize = 13.sp
             )
         }
 
