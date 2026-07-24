@@ -9,7 +9,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,10 +16,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,7 +35,6 @@ import com.mikepenz.markdown.compose.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.template.app.domain.model.AssistantChatMessage
-import com.template.app.domain.model.SecureReplyKind
 import com.template.app.domain.model.ToolCall
 
 // Determines if a string is a URL (album art, remote images) vs local path
@@ -64,8 +58,7 @@ fun MessageBubble(
     val hasText = message.text.isNotEmpty()
     val hasThinking = !message.thinkingText.isNullOrBlank()
     val hasToolCalls = message.toolCalls.isNotEmpty()
-    val hasSecureReply = message.secureReplyKind != null
-    val hasContent = hasImage || hasText || hasThinking || hasToolCalls || message.isStreaming || hasSecureReply
+    val hasContent = hasImage || hasText || hasThinking || hasToolCalls || message.isStreaming
 
     if (!hasContent) return
 
@@ -74,34 +67,30 @@ fun MessageBubble(
         horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
     ) {
         if (message.isUser) {
-            if (message.secureReplyKind != null) {
-                AuthResultCard(kind = message.secureReplyKind)
-            } else {
-                // ── User bubble ──────────────────────────────────────────────
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 4.dp),
-                    modifier = Modifier.widthIn(max = 300.dp)
-                ) {
-                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                        if (hasImage) {
-                            AsyncImage(
-                                model = imageData,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .widthIn(max = 200.dp)
-                                    .clip(RoundedCornerShape(10.dp)),
-                                contentScale = ContentScale.FillWidth
-                            )
-                            if (hasText) Spacer(Modifier.height(8.dp))
-                        }
-                        if (hasText) {
-                            Text(
-                                text = message.text,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
+            // ── User bubble ──────────────────────────────────────────────
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 4.dp),
+                modifier = Modifier.widthIn(max = 300.dp)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    if (hasImage) {
+                        AsyncImage(
+                            model = imageData,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .widthIn(max = 200.dp)
+                                .clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.FillWidth
+                        )
+                        if (hasText) Spacer(Modifier.height(8.dp))
+                    }
+                    if (hasText) {
+                        Text(
+                            text = message.text,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
                 }
             }
@@ -404,53 +393,6 @@ private fun AlbumArtRow(url: String, caption: String) {
                 fontSize = 13.sp,
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-            )
-        }
-    }
-}
-
-@Composable
-fun AuthResultCard(kind: SecureReplyKind) {
-    val (label, icon, tint) = when (kind) {
-        SecureReplyKind.CONFIRMED -> Triple(
-            "Confirmed",
-            Icons.Default.CheckCircle,
-            MaterialTheme.colorScheme.primary
-        )
-        SecureReplyKind.CANCELLED -> Triple(
-            "Cancelled",
-            Icons.Default.Cancel,
-            MaterialTheme.colorScheme.error
-        )
-        SecureReplyKind.PIN_VERIFIED -> Triple(
-            "Verified",
-            Icons.Default.VerifiedUser,
-            MaterialTheme.colorScheme.primary
-        )
-    }
-
-    Surface(
-        color = tint.copy(alpha = 0.12f),
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(0.5.dp, tint.copy(alpha = 0.35f)),
-        modifier = Modifier.widthIn(max = 280.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(22.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
             )
         }
     }

@@ -41,8 +41,9 @@ fun ChatScreen(
     var pinMessage by remember { mutableStateOf<AssistantChatMessage?>(null) }
     var handledGateMessageId by remember { mutableStateOf<String?>(null) }
 
+    // Filter out Secure Reply messages (Confirm/Cancel/Verified cards) from the chat display
     val displayMessages = remember(state.messages) {
-        state.messages.reversed()
+        state.messages.filter { it.secureReplyKind == null }.reversed()
     }
 
     val useBiometrics = biometricsEnabled && biometricAvailable && biometricAuth != null
